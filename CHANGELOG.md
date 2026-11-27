@@ -13,6 +13,10 @@
 - `opslens pack list|show|install`, `render`, `validate`, `preview` (what a run would do right now, nothing executed).
 - First pack: `finops-cleanup/unattached-volumes` (Jira ticket per volume, delete after approval).
 - Demo data now takes the same Postgres SQL as live queries (transpiled), e.g. `now() - interval '14 days'`.
+- **Deploy and run**: `opslens deploy` (refuses unless you pass `--approve <spec hash>` for the exact spec you
+  reviewed), `run`, `approve`, `runs`, `undeploy`. Handwritten Flowpipe REST client; a run waiting on an approval step
+  is detected (Flowpipe reports it as `started`) and the approval form link is surfaced. Append-only SQLite audit log
+  of deploys, runs and approvals. One Flowpipe server per deployed mod (triggers fire only for the top-level mod).
 - Fix: an unknown param named like a secret (`token`) is now refused as an inline secret.
 
 ## 0.1.0 (unreleased)

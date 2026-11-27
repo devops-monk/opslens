@@ -66,3 +66,25 @@ def test_preview_demo_reports_blast_radius_and_changes_nothing(tmp_path):
     assert [a["effect"] for a in out["actions"]] == ["notify", "change"] and out["actions"][1]["gated"] is True
     assert out["actions"][0]["calls"][0]["project_key"] == "INFRA"
     assert "0" in run("preview", str(d), "--source", "demo").output.split("state change(s)")[1][:60]
+
+
+def test_deploy_refuses_without_the_approved_hash_and_shows_what_to_review(tmp_path):
+    d = install(tmp_path)
+    r = run("deploy", str(d))
+    assert r.exit_code == 2
+    assert "review before deploying" in r.output and "--approve" in r.output and "aws.delete_ebs_volume" in r.output
+    r = run("deploy", str(d), "--approve", "0000000000000000")  # a hash you did not review
+    assert r.exit_code == 2
+
+
+def test_deploy_refuses_a_drifted_mod(tmp_path):
+    d = install(tmp_path)
+    (d / "pipelines.fp").write_text((d / "pipelines.fp").read_text().replace("limit 50", "limit 5000"))
+    r = run("deploy", str(d), "--approve", "x")
+    assert r.exit_code == 1 and "drift" in r.output
+
+
+def test_run_requires_a_deployment(tmp_path):
+    d = install(tmp_path)
+    assert run("run", str(d)).exit_code == 1
+    assert run("undeploy", str(d)).exit_code == 1

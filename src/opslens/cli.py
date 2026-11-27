@@ -474,6 +474,142 @@ def preview_cmd(path: Annotated[Path, typer.Argument(help="A spec YAML or a gene
                   "[bold]0[/bold] have been made (this was a preview).")
 
 
+# ------------------------------------------------------------------ deploy, run, approve, runs
+
+
+def _deployed(path: Path) -> tuple[Any, dict[str, Any], Any]:
+    from .flowpipe import server
+    from .flowpipe.client import Flowpipe
+
+    spec, mod_dir = _load_spec_arg(path)
+    if mod_dir is None:
+        raise err("pass the generated mod directory (from `opslens pack install` or `render`)", 2)
+    st = server.read_state(mod_dir)
+    if not st or not server.alive(st["pid"]):
+        raise err(f"{mod_dir} is not deployed (`opslens deploy {mod_dir}`)")
+    return spec, st, Flowpipe(f"http://localhost:{st['port']}")
+
+
+@app.command()
+def deploy(path: Annotated[Path, typer.Argument(help="A generated mod directory.")],
+           approve: Annotated[str | None, typer.Option("--approve", help="The spec hash you reviewed.")] = None,
+           enable_schedule: Annotated[bool, typer.Option("--enable-schedule", help="Turn the schedule trigger on.")] = False,
+           config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Start a Flowpipe server for a generated mod. You must approve the exact spec hash you reviewed."""
+    from .flowpipe import server
+    from .flowpipe.client import FlowpipeError
+    from .runs.store import Audit
+    from .spec import check, render
+    from .validate.preview import preview as run_preview  # noqa: F401  (kept for symmetry with `preview`)
+
+    cfg, _ = load(config, set_)
+    spec, mod_dir = _load_spec_arg(path)
+    if mod_dir is None:
+        raise err("pass the generated mod directory (from `opslens pack install` or `render`)", 2)
+    issues = check.validate(spec)
+    for name, text in render.render(spec).items() if not check.errors(issues) else []:
+        if not (mod_dir / name).exists() or (mod_dir / name).read_text() != text:
+            issues.append(check.Issue("error", "drift", f"{name} differs from what spec.yaml renders to; re-render"))
+    if issues:
+        _print_issues(issues)
+    if check.errors(issues):
+        raise err("not deploying: fix the errors above", 1)
+    h = render.spec_hash(spec)
+    gated = [a.pipeline for a in spec.gated_actions()]
+    if approve != h:
+        console.print(Panel(
+            f"[bold]{spec.title}[/bold]\nspec hash: [bold]{h}[/bold]\n"
+            f"runs: {spec.trigger.kind}" + (f" ({spec.trigger.schedule}, off until --enable-schedule)" if spec.trigger.kind == "schedule" else "")
+            + f"\nmax {spec.detect.max_items} items per run\n"
+            + ("approval required before: " + ", ".join(gated) if gated else "no approval gate (no state-changing actions)")
+            + ("\n[red]auto_apply is ON: state changes run without approval[/red]" if spec.auto_apply else ""),
+            title="review before deploying", border_style="yellow"))
+        raise err(f"review the spec (`opslens preview {mod_dir} --source demo`), then re-run with --approve {h}", 2)
+    try:
+        server.install_mods(mod_dir, cfg.flowpipe.binary)
+        st = server.start(mod_dir, h, binary=cfg.flowpipe.binary,
+                          variables={"trigger_enabled": "true"} if enable_schedule and spec.trigger.kind == "schedule" else None)
+        from .flowpipe.client import Flowpipe
+
+        Flowpipe(f"http://localhost:{st['port']}").wait_for_pipeline(f"{spec.name}.pipeline.{spec.name}", timeout_s=60)
+    except FlowpipeError as e:
+        raise err(str(e)) from e
+    Audit(mod_dir.resolve().parent).log("deploy", spec.name, h, f"port {st['port']}" + (", schedule on" if enable_schedule else ""))
+    console.print(f"Deployed [bold]{spec.name}[/bold] on port {st['port']} (pid {st['pid']}). "
+                  f"Run it: [{BRAND}]opslens run {mod_dir}[/{BRAND}]")
+
+
+@app.command()
+def undeploy(path: Annotated[Path, typer.Argument()]) -> None:
+    """Stop the Flowpipe server for a generated mod."""
+    from .flowpipe import server
+    from .runs.store import Audit
+
+    spec, mod_dir = _load_spec_arg(path)
+    if mod_dir is None or not server.stop(mod_dir):
+        raise err("not deployed")
+    Audit(mod_dir.resolve().parent).log("undeploy", spec.name)
+    console.print(f"Stopped [bold]{spec.name}[/bold].")
+
+
+@app.command("run")
+def run_cmd(path: Annotated[Path, typer.Argument(help="A deployed mod directory.")],
+            timeout: Annotated[int, typer.Option("--timeout", help="Seconds to wait.")] = 120) -> None:
+    """Run a deployed pipeline now. Stops and prints the approval link if it is waiting for approval."""
+    from .flowpipe.client import FlowpipeError
+    from .runs.store import Audit
+
+    spec, st, fp = _deployed(path)
+    name = f"{spec.name}.pipeline.{spec.name}"
+    try:
+        eid = fp.run(name)
+        Audit(path.resolve().parent).log("run", spec.name, st["spec_hash"], eid)
+        state = fp.wait(eid, timeout_s=timeout)
+    except FlowpipeError as e:
+        raise err(str(e)) from e
+    console.print(f"{state.execution_id}: [bold]{state.status}[/bold]  outputs: {state.outputs or '-'}")
+    if state.status == "waiting":
+        console.print(f"[yellow]Waiting for approval.[/yellow] Answer in your notifier, open {state.approval_url}, "
+                      f"or: [{BRAND}]opslens approve {path} {eid} --choice approve|skip[/{BRAND}]")
+    if state.status == "failed":
+        raise err(state.error or "the run failed (see `flowpipe process show`)", 1)
+
+
+@app.command()
+def approve(path: Annotated[Path, typer.Argument(help="A deployed mod directory.")],
+            execution: Annotated[str, typer.Argument(help="The execution id from `opslens run`.")],
+            choice: Annotated[str, typer.Option("--choice", help="approve or skip.")] = "approve",
+            timeout: Annotated[int, typer.Option("--timeout")] = 300) -> None:
+    """Answer a waiting approval from the terminal (the same answer the Slack/Teams/browser form submits)."""
+    from .flowpipe.client import FlowpipeError
+    from .runs.store import Audit
+
+    if choice not in ("approve", "skip"):
+        raise err("--choice must be approve or skip", 2)
+    spec, st, fp = _deployed(path)
+    try:
+        state = fp.state(execution)
+        if state.status != "waiting" or not state.approval_url or not state.waiting_on:
+            raise err(f"{execution} is not waiting for approval (status: {state.status})")
+        fp.answer(state.approval_url, state.waiting_on, choice)
+        Audit(path.resolve().parent).log("approve", spec.name, st["spec_hash"], f"{execution}: {choice}")
+        state = fp.wait(execution, timeout_s=timeout, until_waiting=False)
+    except FlowpipeError as e:
+        raise err(str(e)) from e
+    console.print(f"{execution}: [bold]{state.status}[/bold]  outputs: {state.outputs or '-'}")
+
+
+@app.command()
+def runs(path: Annotated[Path, typer.Argument(help="A generated mod directory.")], limit: Annotated[int, typer.Option("--limit", "-n")] = 20,
+         fmt: FormatOpt = Format.table) -> None:
+    """The audit log for a mod: deploys (with the approved spec hash), runs, approvals."""
+    from .runs.store import Audit
+
+    spec, mod_dir = _load_spec_arg(path)
+    emit(Audit((mod_dir or path).resolve().parent).events(spec.name, limit), fmt,
+         columns=["at", "actor", "kind", "spec_hash", "detail"])
+
+
 def _entry() -> Any:  # pragma: no cover
     return app()
 

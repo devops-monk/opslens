@@ -92,6 +92,7 @@ opslens uses whatever credentials the Steampipe plugins already use (your AWS pr
 | `pack list\|show\|install` | Curated automations; `install` renders a Flowpipe mod you can read and review |
 | `validate <mod>` / `preview <mod>` | Safety + catalog checks and Flowpipe's own parser / what a run would do right now (reads only) |
 | `render <spec.yaml>` | Spec to Flowpipe mod |
+| `deploy <mod> --approve <hash>` / `run` / `approve` / `runs` / `undeploy` | Start the mod's Flowpipe server (only for the spec hash you reviewed), run it, answer approvals, read the audit log |
 | `catalog stats` / `catalog verify` | What ships / compare with installed plugins |
 | `doctor`, `init`, `params`, `config` | Setup, layered settings (defaults, `opslens.yaml`, `OPSLENS__*` env, `--set`) |
 
@@ -119,7 +120,7 @@ talks to them over a database connection and HTTP. It does not link to them or v
 |---|---|---|
 | 0 | Spike: validation and REST run flow confirmed ([findings](docs/phase0-findings.md)) | done |
 | 1 | Catalogs, guard, no-AI CLI, packaging | **this release** |
-| 2 | Mod spec, renderer, validator + preview, packs: **built**; deploy and run tracking, more packs: in progress | **in progress** |
+| 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log: **built**; more packs: in progress | **in progress** |
 | 3 | AI planner (any LLM provider), `generate`, `explain` | |
 | 4 | Web UI: review, approve, runs | |
 | 5 | More packs, incident-copilot demo, docs site | |
