@@ -9,7 +9,7 @@ opslens turns a plain-English ops requirement into a Flowpipe pipeline you can r
 pip install opslens
 
 # or the container (Flowpipe, Steampipe and five plugins included)
-docker run --rm ghcr.io/devops-monk/opslens doctor
+docker run --rm abhaypratap/opslens doctor
 ```
 
 Then check your setup:

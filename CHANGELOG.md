@@ -9,6 +9,8 @@ Phases 2 to 5: specs and packs, deploy and run, AI planner, web app, docs and pa
   recent GitLab deploys and open high-priority Jira issues in a single cross-plugin query, then posts to Teams.
 - Validator: warns when a variable still has a `CHANGE-ME` placeholder default; the inner-LIMIT warning now fires only for a top-level LIMIT.
 - **Docs site**: generated Packs and CLI reference pages; `examples/demo.sh` (a two-minute tour on sample data, covered by a test).
+- **Releases**: tag-triggered workflow (build and clean-venv check, multi-arch image on GHCR and, when configured, Docker Hub
+  `abhaypratap/opslens`, PyPI via Trusted Publishing, GitHub release with the changelog section).
 - **Docker**: the image includes the web and AI extras; `serve --mode demo` works in a container without starting Steampipe.
 - Demo data: sample GuardDuty findings with timestamps relative to now.
 
