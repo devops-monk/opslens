@@ -184,3 +184,45 @@ def test_demo_finds_the_untagged_instances():
 
     p = preview(packs.get(TAG_PACK), "demo", SteampipeConfig())
     assert sorted(r["instance_id"] for r in p.rows) == ["i-00000000000000004", "i-00000000000000008"]
+
+
+# ---- security-to-jira and incident-copilot packs
+
+def _preview(name):
+    from opslens.config import SteampipeConfig
+    from opslens.validate.preview import preview
+
+    return preview(packs.get(name), "demo", SteampipeConfig())
+
+
+def test_guardduty_pack_files_each_new_high_severity_finding_once():
+    p = _preview("security/guardduty-to-jira")
+    assert sorted(r["id"] for r in p.rows) == ["f0001", "f0002", "f0003"]  # >= 7, last 7 days; f0004/5 low, f0006 too old
+    assert p.changes == 0 and p.actions[0].calls[0]["summary"].startswith("[GuardDuty 8.0]")
+    sql = packs.get("security/guardduty-to-jira").detect.sql
+    assert "not exists" in sql and "jira_issue" in sql  # the de-duplication that stops daily re-filing
+
+
+def test_incident_pack_enriches_each_open_alert_from_other_systems_without_any_change():
+    p = _preview("incident/incident-copilot")
+    by = {r["alert_id"]: r for r in p.rows}
+    assert set(by) == {"alert-1", "alert-2"}
+    assert by["alert-2"]["recent_deploys"] == 1 and by["alert-2"]["last_deploy_ref"] == "main"
+    assert by["alert-1"]["recent_deploys"] == 0 and by["alert-1"]["last_deploy_ref"] == "none"
+    assert p.changes == 0 and not packs.get("incident/incident-copilot").gated_actions()
+    assert "recent_deploys" in p.actions[0].calls[1]["message"] or "Deploys in the 6h before: 1" in p.actions[0].calls[1]["message"]
+
+
+def test_placeholder_defaults_are_flagged_before_deploy():
+    codes = [i.code for i in check.validate(packs.get("incident/incident-copilot"))]
+    assert codes.count("placeholder-default") == 2
+    s = packs.get("incident/incident-copilot", {"teams_team_id": "t1", "teams_channel_id": "c1"})
+    assert not [i for i in check.validate(s) if i.code == "placeholder-default"]
+
+
+def test_only_a_top_level_limit_is_warned_about():
+    s = packs.get("incident/incident-copilot")  # has LIMIT inside a subquery
+    assert not [i for i in check.validate(s) if i.code == "sql"]
+    s = packs.get("finops-cleanup/unattached-volumes")
+    s.detect.sql += "\nlimit 5"
+    assert [i for i in check.validate(s) if i.code == "sql"]

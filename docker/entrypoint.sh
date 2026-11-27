@@ -18,11 +18,11 @@ needs_service() {
   esac
   for a in "$@"; do case "$a" in -h|--help|--offline) return 1 ;; esac; done
   if [ "${1:-}" = catalog ] && [ "${2:-}" != verify ]; then return 1; fi
-  # query/doctor on the bundled sample data never touch Steampipe.
+  # the demo web app and anything on the bundled sample data never touch Steampipe.
   local prev=""
   for a in "$@"; do
-    case "$a" in --source=demo) return 1 ;; esac
-    if [ "$prev" = "--source" ] && [ "$a" = "demo" ]; then return 1; fi
+    case "$a" in --source=demo|--mode=demo) return 1 ;; esac
+    if { [ "$prev" = "--source" ] || [ "$prev" = "--mode" ]; } && [ "$a" = "demo" ]; then return 1; fi
     prev="$a"
   done
   return 0

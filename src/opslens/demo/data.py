@@ -6,9 +6,30 @@ JSON columns hold Python lists/dicts (stored as JSON text in the SQLite demo dat
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+
+def _ago(hours: float) -> str:
+    """Timestamps relative to now, so 'last 7 days' style packs keep finding sample rows."""
+    return (datetime.now(UTC) - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 TABLES: dict[str, list[dict[str, Any]]] = {
+    "aws_guardduty_finding": [
+        {"id": "f0001", "arn": "arn:aws:guardduty:us-east-1:111111111111:detector/d1/finding/f0001", "title": "Unusual API calls from a Tor exit node", "type": "UnauthorizedAccess:IAMUser/TorIPCaller", "severity": 8.0,
+         "region": "us-east-1", "account_id": "111111111111", "created_at": _ago(20)},
+        {"id": "f0002", "arn": "arn:aws:guardduty:eu-west-1:222222222222:detector/d1/finding/f0002", "title": "EC2 instance communicating with a known C&C server", "type": "Backdoor:EC2/C&CActivity.B!DNS", "severity": 8.9,
+         "region": "eu-west-1", "account_id": "222222222222", "created_at": _ago(50)},
+        {"id": "f0003", "arn": "arn:aws:guardduty:us-east-1:111111111111:detector/d1/finding/f0003", "title": "S3 bucket policy allows public access", "type": "Policy:S3/BucketAnonymousAccessGranted", "severity": 7.0,
+         "region": "us-east-1", "account_id": "111111111111", "created_at": _ago(100)},
+        {"id": "f0004", "arn": "arn:aws:guardduty:us-east-1:222222222222:detector/d1/finding/f0004", "title": "Port scan from an internal instance", "type": "Recon:EC2/Portscan", "severity": 5.0,
+         "region": "us-east-1", "account_id": "222222222222", "created_at": _ago(30)},
+        {"id": "f0005", "arn": "arn:aws:guardduty:eu-west-1:111111111111:detector/d1/finding/f0005", "title": "Console login without MFA", "type": "Policy:IAMUser/RootCredentialUsage", "severity": 4.0,
+         "region": "eu-west-1", "account_id": "111111111111", "created_at": _ago(60)},
+        {"id": "f0006", "arn": "arn:aws:guardduty:us-east-1:111111111111:detector/d1/finding/f0006", "title": "Old high-severity finding (outside the window)", "type": "CryptoCurrency:EC2/BitcoinTool.B!DNS", "severity": 8.0,
+         "region": "us-east-1", "account_id": "111111111111", "created_at": _ago(480)},
+    ],
     "aws_ebs_volume": [
         {
             "volume_id": "vol-00000000000000001",

@@ -80,6 +80,10 @@ def validate(spec: Spec, tc: tcat.TableCatalog | None = None, pc: pcat.PipelineC
     def warn(code: str, msg: str, where: str = "") -> None:
         issues.append(Issue("warning", code, msg, where))
 
+    for vname, v in spec.variables.items():
+        if isinstance(v.default, str) and v.default.upper().startswith("CHANGE-ME"):
+            warn("placeholder-default", f"variable '{vname}' still has its placeholder default; set it before deploying", "variables")
+
     # ---- detect query
     columns: list[str] = []
     try:
@@ -92,7 +96,7 @@ def validate(spec: Spec, tc: tcat.TableCatalog | None = None, pc: pcat.PipelineC
             columns = cols
         if "EOQ" in spec.detect.sql:
             err("sql", "the query may not contain the heredoc marker EOQ", "detect.sql")
-        if re.search(r"\blimit\b", spec.detect.sql, re.IGNORECASE):
+        if guard.parse_select(spec.detect.sql)[1].args.get("limit") is not None:  # a LIMIT inside a subquery is fine
             warn("sql", f"the renderer already caps results at detect.max_items ({spec.detect.max_items}); "
                  "an inner LIMIT is applied first", "detect.sql")
     except guard.UnsafeSQL as e:

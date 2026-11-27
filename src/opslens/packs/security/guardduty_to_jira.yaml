@@ -1,0 +1,39 @@
+# Pack: security / guardduty-to-jira
+# Opens one Jira ticket per high-severity GuardDuty finding from the last 7 days, once: findings that already have a
+# ticket (a Jira summary containing the finding id) are skipped, so a daily run never files duplicates.
+# Read-only on AWS and additive in Jira, so there is no approval step. The project key appears twice (SQL and args):
+# edit both if you do not use OPS.
+name: guardduty_findings_to_jira
+title: GuardDuty high-severity findings to Jira
+description: Files a Jira ticket for each new GuardDuty finding of severity 7 or higher, skipping findings that already have one.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 25
+  sql: |
+    select
+      f.id,
+      f.title,
+      f.type,
+      f.severity,
+      f.region,
+      f.account_id,
+      f.created_at
+    from aws_guardduty_finding f
+    where f.severity >= 7
+      and f.created_at > now() - interval '7 days'
+      and not exists (
+        select 1 from jira_issue j
+        where j.project_key = 'OPS'
+          and j.summary like '%' || f.id || '%'
+      )
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket per finding
+    args:
+      project_key: OPS
+      issue_type: Task
+      summary: "[GuardDuty {severity}] {title} ({id})"
+      description: "GuardDuty finding {id} of type {type}, severity {severity}, in account {account_id} / {region}, first seen {created_at}."

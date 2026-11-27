@@ -88,3 +88,21 @@ def test_run_requires_a_deployment(tmp_path):
     d = install(tmp_path)
     assert run("run", str(d)).exit_code == 1
     assert run("undeploy", str(d)).exit_code == 1
+
+
+def test_examples_demo_script_runs_clean(tmp_path):
+    """The two-minute tour in examples/ must keep working (it is the first thing a new user runs)."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    exe = shutil.which("opslens", path=str(Path(sys.executable).parent))
+    if not exe or not shutil.which("bash"):
+        pytest.skip("opslens console script not on PATH")
+    script = Path(__file__).parents[2] / "examples" / "demo.sh"
+    env = {**os.environ, "PATH": f"{Path(exe).parent}{os.pathsep}{os.environ['PATH']}", "TMPDIR": str(tmp_path)}
+    r = subprocess.run(["bash", str(script)], capture_output=True, text=True, env=env, timeout=120, check=False)
+    assert r.returncode == 0, r.stderr[-800:]
+    assert "0 have been made" in r.stdout and "8 state change(s) would be requested" in r.stdout

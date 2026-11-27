@@ -28,7 +28,61 @@ from opslens.catalog import tables as tcat
 
 SITE = ROOT / "website"
 DIST = SITE / "dist"
+
+
+def packs_md() -> str:
+    from opslens import packs
+
+    pc = pcat.load()
+    intro = ("Curated automations that work with no AI. Each is a small spec you can read, validate, preview and "
+             "deploy. Install one with `opslens pack install <name>`, or open it in the [app](../../app/?tab=build).")
+    out = ["# Packs", intro, ""]
+    for row in packs.list_packs():
+        s = packs.get(row["pack"])
+        out += [f"## {s.title}", f"`{row['pack']}`", "", s.description, ""]
+        out += ["| step | pipeline | effect | when |", "|---|---|---|---|"]
+        for i, a in enumerate(s.actions, 1):
+            p = pc.get(a.pipeline)
+            out.append(f"| {i}. {a.title or a.pipeline} | `{a.pipeline}` | {p.effect if p else '?'} | "
+                       f"{'after approval' if a.gated else 'automatic'} |")
+        out += ["", f"Runs: **{s.trigger.kind}**" + (f" ({s.trigger.schedule})" if s.trigger.kind == "schedule" else "")
+                + f". Variables: {', '.join(f'`{k}`' for k in s.variables) or 'none'}.", "",
+                "```bash", f"opslens pack install {row['pack']}", "```", "", "```yaml", s.to_yaml().rstrip(), "```", ""]
+    return "\n".join(out)
+
+
+def cli_md() -> str:
+    import typer.main
+
+    from opslens.cli import app
+
+    root = typer.main.get_command(app)
+    out = ["# CLI reference", "Generated from the command tree, so it always matches the installed version.", ""]
+
+    def walk(cmd, path: str) -> None:
+        if hasattr(cmd, "commands"):  # a group (duck-typed: typer may vendor click)
+            for name in sorted(cmd.commands):
+                walk(cmd.commands[name], f"{path} {name}")
+            return
+        help_ = " ".join((cmd.help or "").split())
+        out.extend([f"## `{path}`", help_, ""])
+        params = [x for x in cmd.params if x.name != "help" and x.param_type_name == "option"]
+        args = [x for x in cmd.params if x.param_type_name == "argument"]
+        if args:
+            out.append("Arguments: " + ", ".join(f"`{a.name.upper()}`" for a in args) + "\n")
+        if params:
+            out.extend(["| option | description |", "|---|---|"])
+            for x in params:
+                out.append(f"| `{' / '.join(x.opts)}` | {' '.join((getattr(x, 'help', '') or '').split()).replace('|', '/')} |")
+            out.append("")
+
+    walk(root, "opslens")
+    return "\n".join(out)
+
+
 DOCS = [("getting-started", "Getting started", SITE / "content/docs/getting-started.md"),
+        ("packs", "Packs", packs_md),
+        ("cli", "CLI", cli_md),
         ("safety", "Safety", ROOT / "docs/safety.md")]
 
 
@@ -71,7 +125,7 @@ def build() -> None:
           description="Search 670 Steampipe tables and 443 Flowpipe pipelines in your browser.")
     docs = [{"slug": s, "title": t, "url": "docs/" if s == "getting-started" else f"docs/{s}/"} for s, t, _ in DOCS]
     for slug, title, src in DOCS:
-        html = markdown.markdown(src.read_text(), extensions=["fenced_code", "tables", "toc"])
+        html = markdown.markdown(src() if callable(src) else src.read_text(), extensions=["fenced_code", "tables", "toc"])
         html = re.sub(r"<pre><code>", '<pre class="code"><code>', html)
         rel = "docs" if slug == "getting-started" else f"docs/{slug}"
         write(rel, "doc.html", rel.count("/") + 1, title=title, page="docs", docs=docs, slug=slug, content=html)

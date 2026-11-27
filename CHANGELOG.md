@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased (Phase 2, in progress)
+## 0.2.0 (unreleased)
+
+Phases 2 to 5: specs and packs, deploy and run, AI planner, web app, docs and packaging.
+
+- **Packs `security/guardduty-to-jira` and `incident/incident-copilot`**: one ticket per new high-severity GuardDuty finding (never filed twice:
+  the query skips findings that already have a Jira issue); and an on-demand incident digest that enriches each open Opsgenie alert with
+  recent GitLab deploys and open high-priority Jira issues in a single cross-plugin query, then posts to Teams.
+- Validator: warns when a variable still has a `CHANGE-ME` placeholder default; the inner-LIMIT warning now fires only for a top-level LIMIT.
+- **Docs site**: generated Packs and CLI reference pages; `examples/demo.sh` (a two-minute tour on sample data, covered by a test).
+- **Docker**: the image includes the web and AI extras; `serve --mode demo` works in a container without starting Steampipe.
+- Demo data: sample GuardDuty findings with timestamps relative to now.
 
 - **Mod spec** (`opslens.spec`): a small typed description of one detect-and-act automation, and a deterministic
   **renderer** that turns it into a Flowpipe mod (`mod.fp`, `pipelines.fp`, `triggers.fp`, `spec.yaml`, `README.md`).

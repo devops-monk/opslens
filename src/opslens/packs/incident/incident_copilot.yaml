@@ -1,0 +1,46 @@
+# Pack: incident / incident-copilot
+# For every open Opsgenie alert, gathers context from other systems in ONE read-only query (Steampipe joins across
+# plugins): GitLab deployments in the 6 hours before the alert, the most recent one, and the number of open
+# high-priority Jira issues. Then posts one summary per alert to a Teams channel. Reads only; the Teams post is additive,
+# so there is no approval step. Run it on demand when something is on fire (manual trigger on purpose: a schedule would
+# repeat the same alert). The GitLab project id (42) and Jira project (OPS) are in the SQL: edit them for your setup.
+name: incident_copilot
+title: Incident copilot
+description: Enriches each open Opsgenie alert with recent GitLab deploys and open high-priority Jira issues, and posts a summary to Teams.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: manual
+detect:
+  max_items: 20
+  sql: |
+    select
+      a.alert_id,
+      a.message,
+      a.priority,
+      a.created_at,
+      (select count(*) from gitlab_project_deployment d
+        where d.project_id = '42' and d.status = 'success'
+          and d.created_at <= a.created_at
+          and d.created_at > a.created_at - interval '6 hours') as recent_deploys,
+      coalesce((select d.ref from gitlab_project_deployment d
+        where d.project_id = '42' and d.status = 'success' and d.created_at <= a.created_at
+        order by d.created_at desc limit 1), 'none') as last_deploy_ref,
+      (select count(*) from jira_issue j
+        where j.project_key = 'OPS' and j.status <> 'Done'
+          and j.priority in ('High', 'Highest')) as open_high_issues
+    from opsgenie_alert a
+    where a.status = 'open'
+notify: false
+actions:
+  - pipeline: teams.send_channel_message
+    title: Post an incident summary
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "[{priority}] {message} (alert {alert_id}). Deploys in the 6h before: {recent_deploys} (latest: {last_deploy_ref}). Open high-priority Jira issues: {open_high_issues}."

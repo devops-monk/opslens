@@ -5,6 +5,7 @@
 #   docker build -t opslens .
 #   docker run --rm opslens search "unattached ebs volumes then open a jira ticket"
 #   docker run --rm opslens query --source demo "select volume_id, size from aws_ebs_volume limit 3"
+#   docker run --rm -p 8077:8077 opslens serve --mode demo --host 0.0.0.0 --allow-host localhost   # the web app, sample data
 #   docker run --rm -e AWS_PROFILE=ops -v ~/.aws:/home/opslens/.aws:ro opslens query "select count(*) from aws_ebs_volume"
 #
 # Multi-arch: docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/opslens:0.1.0 --push .
@@ -16,7 +17,7 @@ FROM python:${PYTHON_VERSION}-slim AS wheels
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
-RUN pip wheel --no-cache-dir --wheel-dir /wheels .
+RUN pip wheel --no-cache-dir --wheel-dir /wheels ".[web,ai]"
 
 # ---------------------------------------------------------------- runtime
 FROM python:${PYTHON_VERSION}-slim
@@ -61,7 +62,7 @@ RUN set -eux; \
     rm -rf /tmp/fp /tmp/sp /tmp/*.tar.gz /tmp/checksums.txt
 
 COPY --from=wheels /wheels /tmp/wheels
-RUN pip install --no-cache-dir --no-index --find-links /tmp/wheels opslens && rm -rf /tmp/wheels
+RUN pip install --no-cache-dir --no-index --find-links /tmp/wheels "opslens[web,ai]" && rm -rf /tmp/wheels
 
 # Steampipe refuses to run as root, so everything runs as an unprivileged user.
 RUN useradd --create-home --uid 10001 --shell /bin/bash opslens \

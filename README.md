@@ -122,10 +122,10 @@ talks to them over a database connection and HTTP. It does not link to them or v
 |---|---|---|
 | 0 | Spike: validation and REST run flow confirmed ([findings](docs/phase0-findings.md)) | done |
 | 1 | Catalogs, guard, no-AI CLI, packaging | **this release** |
-| 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log: **built**; more packs: in progress | **in progress** |
-| 3 | AI planner (any LLM provider), `generate`, `explain`: **built, mocked-tested; live eval set ready** | **in progress** |
-| 4 | Web UI: find, build, preview, deploy, approve, audit (`opslens serve`): **built**; public demo live at opslens.devops-monk.com/app/ | **in progress** |
-| 5 | More packs, incident-copilot demo, docs site | |
+| 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log, four packs: **built** | **done** |
+| 3 | AI planner (any LLM provider), `generate`, `explain`: **built, mocked-tested; live eval set ready** | **done, pending live eval** |
+| 4 | Web UI: find, build, preview, deploy, approve, audit (`opslens serve`): **built**; public demo live at opslens.devops-monk.com/app/ | **done** |
+| 5 | More packs, incident-copilot, docs site, Docker image, examples: **built** | **done (v0.2.0)** |
 
 ## Development
 
