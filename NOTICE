@@ -1,0 +1,37 @@
+opslens
+Copyright 2026 Abhay Pratap Singh
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+-------------------------------------------------------------------------------
+Third-party material included in this repository
+-------------------------------------------------------------------------------
+
+The catalogs under src/opslens/catalog/data/ are generated from the public source and documentation of the
+following projects (table and column names, types, descriptions and examples; pipeline names, parameters and
+descriptions). They are reproduced as reference data, unmodified in meaning.
+
+  Steampipe plugins (Apache License 2.0, Copyright Turbot HQ, Inc., unless noted)
+  - turbot/steampipe-plugin-aws           https://github.com/turbot/steampipe-plugin-aws
+  - turbot/steampipe-plugin-jira          https://github.com/turbot/steampipe-plugin-jira
+  - turbot/steampipe-plugin-microsoft365  https://github.com/turbot/steampipe-plugin-microsoft365
+  - theapsgroup/steampipe-plugin-gitlab   https://github.com/theapsgroup/steampipe-plugin-gitlab (community)
+  - jplanckeel/steampipe-plugin-opsgenie  https://github.com/jplanckeel/steampipe-plugin-opsgenie (community)
+
+  Flowpipe library mods (Apache License 2.0, Copyright Turbot HQ, Inc.)
+  - turbot/flowpipe-mod-aws, -aws-thrifty, -aws-tags, -jira, -gitlab, -opsgenie, -teams, -slack, -clickup, -entra,
+    -openai, -pipes, -abuseipdb, -ip2locationio, -ipstack   https://hub.flowpipe.io
+
+The SQL guard (src/opslens/sql/guard.py) is adapted from spendlens (Apache-2.0, same author).
+
+-------------------------------------------------------------------------------
+Third-party software used at runtime and in the Docker image
+-------------------------------------------------------------------------------
+
+opslens runs the following programs as separate processes, unmodified, and talks to them over a database
+connection and an HTTP API. It does not link to them or include their source. Their source code is available at
+the URLs below, at the version tags named in the Dockerfile.
+
+  - Flowpipe               GNU AGPL-3.0   https://github.com/turbot/flowpipe
+  - Steampipe              GNU AGPL-3.0   https://github.com/turbot/steampipe
+  - Steampipe plugins      Apache-2.0     (see above)

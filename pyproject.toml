@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opslens"
+version = "0.1.0"
+description = "Turn plain-English ops requirements into reviewable, deterministic Flowpipe pipelines: catalogs of Steampipe tables and Flowpipe pipelines, a read-only SQL guard, and (optionally) an AI planner."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+keywords = ["flowpipe", "steampipe", "devops", "automation", "sre", "finops", "aws", "gitlab", "jira", "opsgenie"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: System :: Systems Administration",
+]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+  "psycopg[binary]>=3.1",
+  "sqlglot>=25",       # the read-only SQL guard
+  "httpx>=0.27",       # Flowpipe REST client (Phase 2)
+]
+
+[project.optional-dependencies]
+ai = ["litellm>=1.50"]  # Phase 3: provider-agnostic planner
+dev = ["pytest>=8", "ruff>=0.5", "opslens[ai]"]
+
+[project.scripts]
+opslens = "opslens.cli:app"
+
+[project.urls]
+Source = "https://github.com/devops-monk/opslens"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opslens"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not system'"
+markers = [
+  "unit: pure logic, no I/O beyond tmp files",
+  "integration: real components wired together (CLI, demo database, shipped catalogs), no cloud",
+  "system: needs real Steampipe/Flowpipe binaries and plugins; run with OPSLENS_SYSTEM=1",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
