@@ -124,7 +124,7 @@ talks to them over a database connection and HTTP. It does not link to them or v
 | 1 | Catalogs, guard, no-AI CLI, packaging | **this release** |
 | 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log: **built**; more packs: in progress | **in progress** |
 | 3 | AI planner (any LLM provider), `generate`, `explain`: **built, mocked-tested; live eval set ready** | **in progress** |
-| 4 | Web UI: find, build, preview, deploy, approve, audit (`opslens serve`): **built**; public demo deployment pending | **in progress** |
+| 4 | Web UI: find, build, preview, deploy, approve, audit (`opslens serve`): **built**; public demo live at opslens.devops-monk.com/app/ | **in progress** |
 | 5 | More packs, incident-copilot demo, docs site | |
 
 ## Development

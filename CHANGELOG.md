@@ -13,6 +13,8 @@
 - `opslens pack list|show|install`, `render`, `validate`, `preview` (what a run would do right now, nothing executed).
 - First pack: `finops-cleanup/unattached-volumes` (Jira ticket per volume, delete after approval).
 - Demo data now takes the same Postgres SQL as live queries (transpiled), e.g. `now() - interval '14 days'`.
+- **Demo deployment**: `scripts/deploy_app.sh` ships the public demo to `/app/` on the VPS (unprivileged `opslens` user, systemd sandbox with
+  memory/CPU limits, loopback-only, one additive nginx location). UI uses relative URLs so it works under a path prefix.
 - **Web app (Phase 4)**: `opslens serve` (FastAPI + a single-page UI): Find, Build and Mods tabs over the same engine. Local mode (loopback only,
   Host allow-list, per-session token) does the full workflow; `--mode demo` is public-safe (sample data, no writes, no AI, rate limited).
   Spec YAML now writes multi-line SQL as readable `|` blocks.

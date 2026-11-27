@@ -82,8 +82,8 @@ def check() -> int:
     bad = 0
     for f in DIST.rglob("*.html"):
         for ref in re.findall(r'(?:href|src)="([^"#?]+)', f.read_text()):
-            if re.match(r"(https?:|mailto:|data:)", ref):
-                continue
+            if re.match(r"(https?:|mailto:|data:)", ref) or re.fullmatch(r"(\.\./)*app/", ref):
+                continue  # /app/ is the demo web app, proxied by nginx (not part of the static build)
             t = (f.parent / ref).resolve()
             if not (t.is_file() or (t / "index.html").is_file()):
                 print(f"BROKEN {f.relative_to(DIST)} -> {ref}")

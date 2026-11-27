@@ -9,7 +9,7 @@
     const opt = { method: method || (body === undefined ? "GET" : "POST"), headers: {} };
     if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
     if (opt.method !== "GET") opt.headers["X-Opslens-Token"] = meta ? meta.token : "";
-    const r = await fetch(path, opt);
+    const r = await fetch(path.replace(/^\//, ""), opt);  // relative, so the app also works under a path prefix (/app/)
     let data = null; try { data = await r.json(); } catch (_) { /* empty */ }
     if (!r.ok) throw new Error((data && data.detail) || `${r.status} ${r.statusText}`);
     return data;
@@ -123,7 +123,7 @@
   });
   $("#pack").addEventListener("change", async (ev) => {
     if (!ev.target.value) return;
-    const r = await api(`/api/packs/${ev.target.value}`); $("#spec").value = r.yaml; validate();
+    try { const r = await api(`/api/packs/${ev.target.value}`); $("#spec").value = r.yaml; validate(); } catch (e) { toast(e.message, 6000); }
   });
   $("#gen").addEventListener("click", async () => {
     const ask = $("#ask").value.trim(); if (!ask) return;
@@ -182,7 +182,7 @@
     if (demo) { const b = $("#banner"); b.hidden = false; b.textContent = "This is a public demo on sample data. Nothing here can reach a cloud account, deploy, or change anything. Install opslens to use it for real."; }
     else { $("#tab-mods").hidden = false; $("#save").hidden = false; $("#prevlive").hidden = false; }
     if (meta.ai) $("#askbox").hidden = false;
-    try { (await api("/api/packs")).forEach((p) => { const o = el("option", "", `${p.pack}: ${p.title}`); o.value = p.pack; $("#pack").append(o); }); } catch (_) { /* optional */ }
+    try { (await api("/api/packs")).forEach((p) => { const o = el("option", "", `${p.pack}: ${p.title}`); o.value = p.pack; $("#pack").append(o); }); } catch (e) { toast(`Could not load packs: ${e.message}`, 6000); }
     const qs = new URLSearchParams(location.search), q = qs.get("q");
     if (q) { $("#q").value = q; runSearch(); }
     const tab = qs.get("tab"); if (tab === "build" || (tab === "mods" && !demo)) show(tab);

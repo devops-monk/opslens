@@ -90,7 +90,7 @@ class Limiter:
 
 
 def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = None, allow_hosts: tuple[str, ...] = (),
-               trust_proxy: bool = False, rate_per_minute: int = 60, token: str | None = None) -> FastAPI:
+               trust_proxy: bool = False, rate_per_minute: int = 120, token: str | None = None) -> FastAPI:
     assert mode in ("local", "demo")
     demo = mode == "demo"
     ws = (workspace or Path(cfg.flowpipe.workspace_dir)).resolve()

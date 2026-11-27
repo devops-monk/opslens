@@ -1,0 +1,33 @@
+[Unit]
+Description=opslens public demo app (sample data only)
+After=network.target
+
+[Service]
+Type=simple
+User=opslens
+Group=opslens
+WorkingDirectory=/opt/opslens
+ExecStart=/opt/opslens/venv/bin/opslens serve --mode demo --host 127.0.0.1 --port 8077 --allow-host opslens.devops-monk.com --trust-proxy
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# The demo needs no files, no cloud credentials and no privileges.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryMax=512M
+TasksMax=64
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target
