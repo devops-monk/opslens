@@ -18,6 +18,9 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: System :: Systems Administration",
 ]
 dependencies = [
@@ -39,7 +42,15 @@ dev = ["opslens[web]", "pytest>=8", "ruff>=0.5", "opslens[ai]", "jinja2>=3.1", "
 opslens = "opslens.cli:app"
 
 [project.urls]
+Homepage = "https://opslens.devops-monk.com"
+Documentation = "https://opslens.devops-monk.com/docs/"
 Source = "https://github.com/devops-monk/opslens"
+Changelog = "https://github.com/devops-monk/opslens/blob/main/CHANGELOG.md"
+Issues = "https://github.com/devops-monk/opslens/issues"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "scripts", "examples", "evals", "docs", "docker", "Dockerfile", "install.sh", "Makefile",
+           "README.md", "LICENSE", "NOTICE", "CHANGELOG.md", "pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/opslens"]
