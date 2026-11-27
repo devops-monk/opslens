@@ -58,6 +58,9 @@ def arg_expr(value: str | float | bool, ptype: str) -> str:
         if ref:
             return f"[{ref}]"
         return "[" + ", ".join(template(p.strip()) for p in str(value).split(",") if p.strip()) + "]"
+    if ptype == "map(string)":  # "k=v,k2=v2" in the spec; values may hold {placeholders}
+        pairs = [kv.split("=", 1) for kv in str(value).split(",") if kv.strip()]
+        return "{" + ", ".join(f"{hcl_str(k.strip())} = {template(v.strip())}" for k, v in pairs) + "}"
     if ptype == "string":
         return template(str(value))
     raise RenderError(f"cannot render a value for param type {ptype}")

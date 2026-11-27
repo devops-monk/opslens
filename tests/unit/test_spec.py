@@ -151,3 +151,36 @@ def test_pack_variable_overrides():
         packs.get("finops-cleanup/unattached-volumes", {"nope": "1"})
     with pytest.raises(KeyError):
         packs.get("no/such-pack")
+
+
+# ---- tag-enforcement pack and map(string) args
+
+TAG_PACK = "governance/tag-enforcement"
+
+
+def test_every_shipped_pack_validates_clean():
+    for row in packs.list_packs():
+        issues = check.validate(packs.get(row["pack"]))
+        assert not check.errors(issues), (row["pack"], [str(i) for i in issues])
+
+
+def test_tag_pack_gates_the_tagging_and_renders_a_map():
+    s = packs.get(TAG_PACK)
+    assert [a.pipeline for a in s.gated_actions()] == ["aws.tag_resources"]
+    hcl = render.render(s)["pipelines.fp"]
+    assert 'tags          = {"compliance" = "missing-owner"}' in hcl
+    assert "resource_arns = [each.value.arn]" in hcl
+
+
+def test_map_arg_must_be_key_value_pairs():
+    s = packs.get(TAG_PACK)
+    s.actions[1].args["tags"] = "no-equals-sign"
+    assert any(i.code == "arg-type" for i in check.validate(s))
+
+
+def test_demo_finds_the_untagged_instances():
+    from opslens.config import SteampipeConfig
+    from opslens.validate.preview import preview
+
+    p = preview(packs.get(TAG_PACK), "demo", SteampipeConfig())
+    assert sorted(r["instance_id"] for r in p.rows) == ["i-00000000000000004", "i-00000000000000008"]

@@ -1,0 +1,47 @@
+# Pack: governance / tag-enforcement
+# Finds running EC2 instances missing the required owner tag, opens one Jira ticket per instance and tells the team,
+# then (only after approval) tags each instance so it is visibly flagged for follow-up. Nothing is stopped or deleted.
+name: ec2_tag_enforcement
+title: EC2 owner-tag enforcement
+description: Finds running EC2 instances with no Owner tag, opens a Jira ticket for each, and flags them with a tag after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select
+      instance_id,
+      arn,
+      region,
+      account_id,
+      instance_type,
+      launch_time
+    from aws_ec2_instance
+    where instance_state = 'running'
+      and tags ->> 'Owner' is null
+notify: true
+approval:
+  prompt: Flag these instances with the compliance tag?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket per instance
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "EC2 instance {instance_id} ({instance_type}) in {region} has no Owner tag"
+      description: "Instance {instance_id} in account {account_id} / {region}, launched {launch_time}, has no Owner tag. Please assign an owner."
+  - pipeline: aws.tag_resources
+    title: Tag the instance
+    gated: true
+    args:
+      region: "{region}"
+      resource_arns: "{arn}"
+      tags: "compliance=missing-owner"

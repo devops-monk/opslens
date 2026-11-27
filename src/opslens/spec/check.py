@@ -25,7 +25,7 @@ from ..sql import guard
 from .model import PLACEHOLDER, Spec, placeholders
 
 SECRETISH = re.compile(r"(token|password|passwd|secret|api_?key|apikey|credential)", re.IGNORECASE)
-SIMPLE_TYPES = {"string", "number", "bool", "list(string)"}
+SIMPLE_TYPES = {"string", "number", "bool", "list(string)", "map(string)"}
 MIN_SCHEDULE_SECONDS = 300
 
 
@@ -137,6 +137,8 @@ def validate(spec: Spec, tc: tcat.TableCatalog | None = None, pc: pcat.PipelineC
                     err("placeholder", f"{{{ph}}} is not a column of the detect query (columns: {', '.join(columns)})", where)
             if prm.enum and not placeholders(v) and v not in prm.enum:
                 err("arg-enum", f"'{k}' must be one of {prm.enum}, got {v!r}", where)
+            if prm.type == "map(string)" and not all("=" in kv for kv in str(v).split(",") if kv.strip()):
+                err("arg-type", f"'{k}' must be comma-separated key=value pairs, got {v!r}", where)
             if prm.type == "number" and not placeholders(v):
                 try:
                     float(v)
