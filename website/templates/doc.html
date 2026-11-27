@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="wrap narrow doc">
+  <div class="sidenav">{% for d in docs %}<a class="chip" href="{{ root }}{{ d.url }}"{% if d.slug==slug %} aria-current="page" style="background:var(--fg);color:var(--bg)"{% endif %}>{{ d.title }}</a>{% endfor %}</div>
+  {{ content|safe }}
+</div>
+{% endblock %}

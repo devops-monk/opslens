@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% if title %}{{ title }} · {% endif %}opslens</title>
+<meta name="description" content="{{ description or 'Say what you want done. Get a pipeline you can read, review and trust. Plain-English ops requirements to reviewable Flowpipe pipelines, with or without AI.' }}">
+<meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="{{ root }}static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{ root }}static/style.css?v={{ version }}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="top" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="{{ root }}"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><use href="{{ root }}static/icon.svg#i"/></svg>opslens</a>
+    <div class="links">
+      <a href="{{ root }}explore/"{% if page=='explore' %} class="on"{% endif %}>Explore</a>
+      <a href="{{ root }}docs/"{% if page=='docs' %} class="on"{% endif %}>Docs</a>
+      <a href="{{ root }}docs/safety/">Safety</a>
+      <a href="https://github.com/devops-monk/opslens">GitHub</a>
+      <a class="pill primary" href="{{ root }}docs/#install">Install</a>
+    </div>
+  </div>
+</nav>
+<main id="main">
+{% block body %}{% endblock %}
+</main>
+<footer>
+  <div class="wrap">
+    <div>opslens {{ version }} · Apache-2.0 · Built on <a href="https://flowpipe.io">Flowpipe</a> and <a href="https://steampipe.io">Steampipe</a> (AGPL-3.0, run as separate programs).</div>
+    <div><a href="https://github.com/devops-monk/opslens">Source</a> · <a href="{{ root }}docs/safety/">Safety model</a> · <a href="https://spendlens.devops-monk.com">spendlens</a></div>
+  </div>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
