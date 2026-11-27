@@ -320,3 +320,25 @@ Rough total: 15-17 weeks for one engineer; Phases 3 and 4 can overlap with two.
 4. How the REST API reports a paused run (waiting for input) and how to link to the approval form (`/form/:id/:hash`).
 5. Embedding-based catalog search: needed or are synonyms plus keywords enough (SpendLens suggests the latter is fine)?
 6. Hosting of catalogs: ship in the wheel, or fetch versioned releases?
+
+
+---
+
+## Addendum: adjustments from Phase 0 and Phase 1 (2026-11-27)
+
+Folded in from [phase0-findings.md](phase0-findings.md) and the Phase 1 build:
+
+1. **Run tracker**: Flowpipe has no "paused" run status; a run waiting on an `input` step reports `started`. Detect
+   approval waits from `GET /process/{id}/log/process.json` and take the form path (`/form/<id>/<hash>`) from there.
+2. **Deployer**: create the Flowpipe data dir before starting the server (a missing dir fails the first run), and poll
+   `GET /pipeline/{name}` until the file watcher has loaded a new pipeline (about 30 s) before running it.
+3. **REST client**: handwritten (`flowpipe/client.py`); `/docs/openapi.json` returns 500 on the official release too.
+4. **Load check** (validator step 4): `flowpipe pipeline list --output json` exits 0 on a good mod and 255 on syntax,
+   reference and type errors, with `file:line` messages. Pinned by `tests/system/test_flowpipe_load.py`.
+5. **Plugin coverage is better than assumed**: Microsoft 365 has `microsoft365_team` / `team_member`; community GitLab
+   (v0.6.0, 39 tables incl. deployments, pipelines, merge requests) and Opsgenie (v0.0.2, alerts and teams) install with
+   `steampipe plugin install theapsgroup/gitlab` / `jplanckeel/opsgenie`. `opslens-mod-extras` is still needed for
+   write actions and for reads those plugins lack (e.g. Opsgenie on-call, Teams channel messages).
+6. **Done in Phase 1**: catalogs (670 tables verified 670/670 against live plugins; 443 pipelines with read/write
+   risk), SQL guard with catalog allow-list, layered config, CLI, packaging (wheel, Docker, `install.sh`, CI).
+   A 15th mod, `flowpipe-mod-slack`, is now part of the pipeline catalog.

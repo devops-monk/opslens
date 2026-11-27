@@ -32,7 +32,7 @@ marks each capability as `table` or `api`. The incident-copilot pack depends mos
 
 ## Open items (not verified)
 
-- `GET /docs/openapi.json` returned 500 in my local build, probably because swagger docs are generated at release build time. Check against an official release binary before generating the REST client from it; fall back to the handwritten client in `flowpipe/client.py` (the endpoints above are small).
+- **Resolved:** `GET /docs/openapi.json` also returns 500 on the official v1.2.4 release binary, so it can't be used to generate a client. Phase 2 uses a handwritten client in `flowpipe/client.py` over the verified endpoints above.
 - Whether `.fpc` connection resolution works headless in a generated mod's workspace (untested; no cloud credentials used).
 - Steampipe plugin table lists for jira / microsoft365 (not fetched yet) for the table catalog builder.
 - Time-to-reload on file change: measured loosely (about 30 s); worth confirming and checking if a config knob exists or if restart is cheaper.
