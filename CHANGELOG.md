@@ -13,6 +13,10 @@
 - `opslens pack list|show|install`, `render`, `validate`, `preview` (what a run would do right now, nothing executed).
 - First pack: `finops-cleanup/unattached-volumes` (Jira ticket per volume, delete after approval).
 - Demo data now takes the same Postgres SQL as live queries (transpiled), e.g. `now() - interval '14 days'`.
+- **AI planner (Phase 3)**: `opslens generate` turns a requirement into a validated spec and mod; `opslens explain` reads any spec in
+  plain English (no AI). Providers: anthropic (SDK, adaptive thinking, prompt caching, refusal fallback), openai, openai_compatible, glm,
+  openrouter, ollama (plain HTTP, no extra dependency) and litellm (azure, bedrock, gemini...). Catalog-grounded prompt, validator feedback
+  loop, `auto_apply` forced off, requirement redaction, `--show-context`. Live eval set in `evals/`.
 - **Pack `governance/tag-enforcement`**: running EC2 instances with no Owner tag get a Jira ticket each; after approval they are
   tagged `compliance=missing-owner`. Specs can now set `map(string)` params as `key=value,key2=value2`.
 - **Deploy and run**: `opslens deploy` (refuses unless you pass `--approve <spec hash>` for the exact spec you

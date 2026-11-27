@@ -59,9 +59,14 @@ class CatalogConfig(_Strict):
 
 class LLMConfig(_Strict):
     """Phase 3: provider-agnostic planner. Everything works without it."""
-    provider: Literal["none", "openai", "azure", "bedrock", "anthropic", "openai_compatible"] = "none"
-    model: str | None = None
-    base_url: str | None = None
+    provider: Literal["none", "anthropic", "openai", "openai_compatible", "glm", "openrouter", "ollama", "litellm",
+                      "azure", "bedrock"] = "none"
+    model: str | None = Field(None, description="Model name. Defaults to claude-opus-5-5 for anthropic; required elsewhere.")
+    base_url: str | None = Field(None, description="Endpoint for openai_compatible (and to override a preset).")
+    api_key_env: str | None = Field(None, description="Name of the env var holding the API key (keys never go in config).")
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = Field("high", description="Anthropic thinking effort.")
+    fallback: bool = Field(True, description="Anthropic: retry on a fallback model if safety classifiers decline.")
+    max_attempts: int = Field(3, ge=1, le=6, description="Planner tries, feeding validation errors back each time.")
     redact: bool = True
 
 
@@ -195,7 +200,9 @@ flowpipe:
 #   plugins: [aws, jira, gitlab, opsgenie, microsoft365]   # limit searches to these plugins
 
 llm:
-  provider: none              # none | openai | azure | bedrock | anthropic | openai_compatible (Phase 3)
-  # model: ...
-  redact: true
+  provider: none              # none | anthropic | openai | openai_compatible | glm | openrouter | ollama | litellm
+  # model: claude-opus-5-5    # required for every provider except anthropic
+  # base_url: http://localhost:8000/v1   # openai_compatible
+  # api_key_env: MY_KEY_VAR   # env var holding the key (keys never go in this file)
+  redact: true                # scrub emails, account ids, ARNs, key-like strings from the requirement before sending
 """

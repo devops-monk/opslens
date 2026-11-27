@@ -83,3 +83,19 @@ def test_doctor_offline_runs():
 def test_catalog_stats():
     r = run("catalog", "stats", "-f", "json")
     assert r.exit_code == 0
+
+
+def test_generate_without_a_provider_explains_how_to_enable_it():
+    r = run("generate", "stop idle ec2 instances and tell the team")
+    assert r.exit_code == 1 and "llm.provider" in r.output
+
+
+def test_explain_works_without_ai(tmp_path):
+    r = run("explain", str(__import__("opslens").__path__[0] + "/packs/governance/tag_enforcement.yaml"))
+    flat = " ".join(r.output.split())
+    assert r.exit_code == 0 and "Only on approval" in flat and "aws.tag_resources" in flat
+
+
+def test_show_context_prints_what_would_be_sent_and_redacts():
+    r = run("generate", "unattached ebs volumes owned by bob@example.com", "--show-context")
+    assert r.exit_code == 0 and "aws_ebs_volume" in r.output and "bob@example.com" not in r.output and "<email>" in r.output

@@ -51,6 +51,29 @@ opslens approve generated/unattached_volume_cleanup <execution-id> --choice appr
 opslens runs    generated/unattached_volume_cleanup         # audit log
 ```
 
+## Use AI (optional)
+
+Everything above works without AI. If you want a model to draft the spec from a sentence, pick any provider:
+
+```bash
+# Anthropic (default model claude-opus-5-5)
+export ANTHROPIC_API_KEY=...
+opslens generate "find unattached EBS volumes older than 30 days, open a Jira ticket for each, delete them after approval" \
+  --set llm.provider=anthropic
+
+# OpenAI, GLM (Z.ai), OpenRouter, a local Ollama, or any OpenAI-compatible server: name the model
+export OPENROUTER_API_KEY=...
+opslens generate "..." --set llm.provider=openrouter --set llm.model=<model>
+opslens generate "..." --set llm.provider=glm --set llm.model=<model>          # key in $ZAI_API_KEY
+opslens generate "..." --set llm.provider=ollama --set llm.model=<model>       # no key
+opslens generate "..." --set llm.provider=openai_compatible --set llm.base_url=http://gpu:8000/v1 --set llm.model=<model>
+opslens generate "..." --set llm.provider=litellm --set llm.model=bedrock/<id>  # also azure, gemini... (pip install litellm)
+```
+
+The model only ever sees your sentence and public catalog metadata (table and column names, pipeline parameters), never your cloud data or credentials. Emails, account ids, ARNs and key-like strings are scrubbed first. `--show-context` prints exactly what would be sent.
+
+The model fills in a spec; it never writes pipeline code. The result goes through the same validator as the packs, and validation errors are sent back to the model for up to three attempts. `auto_apply` is forced off, so anything that changes state still waits for your approval. Read it with `opslens explain <mod>`, then `preview` and `deploy` as usual.
+
 ## Exit codes
 
 | code | meaning |

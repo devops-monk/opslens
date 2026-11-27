@@ -1,0 +1,22 @@
+# Planner eval: each case is a requirement plus properties the generated spec must have.
+# Run (spends real tokens; needs a provider):  OPSLENS_SYSTEM=1 OPSLENS__LLM__PROVIDER=anthropic pytest -m system tests/system/test_planner_eval.py
+- ask: Find EBS volumes unattached for more than 30 days, open a Jira ticket for each, and delete them after approval.
+  tables: [aws_ebs_volume]
+  pipelines: [jira.create_issue, aws.delete_ebs_volume]
+  gated: [aws.delete_ebs_volume]
+- ask: Every day list running EC2 instances with no Owner tag and post a message about them to a Teams channel.
+  tables: [aws_ec2_instance]
+  pipelines: [teams.send_channel_message]
+  gated: []
+- ask: When an Opsgenie alert is open, create a GitLab issue for it.
+  tables: [opsgenie_alert]
+  pipelines: [gitlab.create_issue]
+  gated: []
+- ask: Find unassociated Elastic IPs and release them after approval, with a Jira ticket first.
+  tables: [aws_vpc_eip]
+  pipelines: [jira.create_issue]
+  gated: [aws.release_eip]
+- ask: Stop running m5.2xlarge EC2 instances that have no Owner tag, after approval.
+  tables: [aws_ec2_instance]
+  pipelines: [aws.stop_ec2_instances]
+  gated: [aws.stop_ec2_instances]

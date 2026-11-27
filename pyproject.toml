@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ai = ["litellm>=1.50"]  # Phase 3: provider-agnostic planner
+ai = ["anthropic>=1.0,<2"]  # Phase 3 planner: Anthropic SDK. OpenAI-style providers need nothing; `pip install litellm` for the rest
 dev = ["pytest>=8", "ruff>=0.5", "opslens[ai]", "jinja2>=3.1", "markdown>=3.5", "pygments>=2.17"]  # last three: scripts/build_site.py
 
 [project.scripts]

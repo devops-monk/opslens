@@ -610,6 +610,56 @@ def runs(path: Annotated[Path, typer.Argument(help="A generated mod directory.")
          columns=["at", "actor", "kind", "spec_hash", "detail"])
 
 
+@app.command()
+def generate(requirement: Annotated[str, typer.Argument(help="What you want, in plain English.")],
+             out: Annotated[Path | None, typer.Option("--out", "-o", help="Parent directory (default flowpipe.workspace_dir).")] = None,
+             force: Annotated[bool, typer.Option("--force")] = False,
+             dry_run: Annotated[bool, typer.Option("--dry-run", help="Show the spec; write nothing.")] = False,
+             show_context: Annotated[bool, typer.Option("--show-context", help="Print what would be sent to the model, then stop.")] = False,
+             config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """AI: turn a requirement into a validated spec and a Flowpipe mod. Needs `llm.provider` (see `opslens params`)."""
+    from .ai import planner
+    from .ai.providers import LLMError, make_provider
+    from .spec import render
+    from .spec.explain import explain as explain_spec
+
+    cfg, _ = load(config, set_)
+    sent = planner.redact(requirement) if cfg.llm.redact else requirement
+    if show_context:
+        console.print("-- system prompt --", style="dim")
+        console.print(planner.system_prompt(), markup=False)
+        console.print("-- user message --", style="dim")
+        console.print(f"{planner.context_for(sent)}\n\n## Requirement\n{sent}", markup=False)
+        return
+    try:
+        provider = make_provider(cfg.llm)
+        with console.status(f"Planning with {provider.name} ({provider.model})..."):
+            plan = planner.plan(requirement, provider, max_attempts=cfg.llm.max_attempts, do_redact=cfg.llm.redact)
+    except (LLMError, planner.PlannerError) as e:
+        raise err(str(e)) from e
+    _print_issues(plan.issues)
+    console.print(Panel(plan.yaml, title=f"spec from {plan.model} ({plan.attempts} attempt{'s' * (plan.attempts > 1)})",
+                        border_style=BRAND))
+    for line in explain_spec(plan.spec):
+        console.print(f"  {line}")
+    if dry_run:
+        return
+    dest = (out or Path(cfg.flowpipe.workspace_dir)) / plan.spec.name
+    _write_mod(render.render(plan.spec), dest, force)
+    console.print(f"Wrote [bold]{dest}[/bold]  (spec hash {render.spec_hash(plan.spec)}). [yellow]AI-written: read it before you trust it.[/yellow]")
+    console.print(f"next: [{BRAND}]opslens preview {dest} --source demo[/{BRAND}]")
+
+
+@app.command()
+def explain(path: Annotated[Path, typer.Argument(help="A spec YAML or generated mod directory.")]) -> None:
+    """Explain a spec in plain English (no AI): what it queries, what runs by itself, what waits for approval."""
+    from .spec.explain import explain as explain_spec
+
+    spec, _ = _load_spec_arg(path)
+    for line in explain_spec(spec):
+        console.print(f"- {line}")
+
+
 def _entry() -> Any:  # pragma: no cover
     return app()
 
