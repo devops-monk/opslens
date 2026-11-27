@@ -130,6 +130,7 @@ def build() -> None:
         rel = "docs" if slug == "getting-started" else f"docs/{slug}"
         write(rel, "doc.html", rel.count("/") + 1, title=title, page="docs", docs=docs, slug=slug, content=html)
     (DIST / "robots.txt").write_text("User-agent: *\nAllow: /\n")
+    shutil.copy(ROOT / "install.sh", DIST / "install.sh")  # curl -fsSL https://opslens.devops-monk.com/install.sh | sh
 
 
 def check() -> int:

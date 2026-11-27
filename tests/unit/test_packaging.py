@@ -50,3 +50,9 @@ def test_every_shipped_data_file_is_in_the_wheel_tree():
     data = ROOT / "src" / "opslens" / "catalog" / "data"
     names = {p.name for p in data.iterdir()}
     assert "pipelines.json.gz" in names and {f"tables_{p}.json.gz" for p in versions.PLUGINS} <= names
+
+
+def test_installer_defaults_to_this_release_and_is_served_by_the_site():
+    sh = text("install.sh")
+    assert f'REF="${{OPSLENS_REF:-v{__version__}}}"' in sh, "install.sh must default to the current release tag"
+    assert "https://opslens.devops-monk.com/install.sh" in sh

@@ -4,12 +4,28 @@ opslens turns a plain-English ops requirement into a Flowpipe pipeline you can r
 
 ## Install
 
-```bash
-# with pip (Python 3.11+)
-pip install opslens
+One command for macOS and Linux. It installs Flowpipe, Steampipe, the five plugins (pinned, checksum-verified) and opslens itself, in your home directory, without sudo, and never touches your cloud credentials:
 
-# or the container (Flowpipe, Steampipe and five plugins included)
-docker run --rm abhaypratap/opslens doctor
+```bash
+curl -fsSL https://opslens.devops-monk.com/install.sh | sh
+```
+
+Want to read it first? That is the better habit:
+
+```bash
+curl -fsSLO https://opslens.devops-monk.com/install.sh
+less install.sh
+OPSLENS_DRY_RUN=1 sh install.sh     # prints what it would do, changes nothing
+sh install.sh
+```
+
+Options are environment variables: `OPSLENS_EXTRAS="ai web"` adds the AI planner and the web app, `OPSLENS_SKIP_ENGINES=1` installs only opslens, `OPSLENS_PLUGINS="aws jira"` limits the plugins.
+
+Other ways:
+
+```bash
+pip install opslens                        # Python 3.11+, once published to PyPI
+docker run --rm abhaypratap/opslens doctor # Flowpipe, Steampipe and plugins included
 ```
 
 Then check your setup:
