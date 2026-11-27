@@ -13,8 +13,8 @@
 catalog, a timeout and a row cap. Nothing that changes state runs without an approval gate.</p>
 
 > [!NOTE]
-> **v0.1.0 is Phase 1: catalogs and the no-AI CLI.** Search, describe and query work today. Generating, validating and
-> deploying pipelines (Phases 2 and 3) are next; see [docs/implementation-plan.md](docs/implementation-plan.md).
+> **v0.1.0 is Phase 1; Phase 2 is in progress on `main`.** Search, describe, query, and now `pack install`, `validate`
+> and `preview` work. Deploying and the AI planner are next; see [docs/implementation-plan.md](docs/implementation-plan.md).
 
 ## Why
 
@@ -89,6 +89,9 @@ opslens uses whatever credentials the Steampipe plugins already use (your AWS pr
 | `find tables <words>` / `find pipelines <words>` | Ranked search; `--plugin`, `--mod`, `--writes`, `--reads` |
 | `describe table <name>` / `describe pipeline <name>` | Columns, filters, examples / typed params, outputs, risk, usage snippet |
 | `query "<sql>"` | One guarded read-only `SELECT`; `--source demo` for sample data; `-f table\|json\|csv` |
+| `pack list\|show\|install` | Curated automations; `install` renders a Flowpipe mod you can read and review |
+| `validate <mod>` / `preview <mod>` | Safety + catalog checks and Flowpipe's own parser / what a run would do right now (reads only) |
+| `render <spec.yaml>` | Spec to Flowpipe mod |
 | `catalog stats` / `catalog verify` | What ships / compare with installed plugins |
 | `doctor`, `init`, `params`, `config` | Setup, layered settings (defaults, `opslens.yaml`, `OPSLENS__*` env, `--set`) |
 
@@ -116,7 +119,7 @@ talks to them over a database connection and HTTP. It does not link to them or v
 |---|---|---|
 | 0 | Spike: validation and REST run flow confirmed ([findings](docs/phase0-findings.md)) | done |
 | 1 | Catalogs, guard, no-AI CLI, packaging | **this release** |
-| 2 | Mod spec, renderer, validator + preview, deploy, packs (`finops-cleanup`, `tag-enforcement`) | next |
+| 2 | Mod spec, renderer, validator + preview, packs: **built**; deploy and run tracking, more packs: in progress | **in progress** |
 | 3 | AI planner (any LLM provider), `generate`, `explain` | |
 | 4 | Web UI: review, approve, runs | |
 | 5 | More packs, incident-copilot demo, docs site | |

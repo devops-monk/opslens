@@ -1,0 +1,46 @@
+# Pack: finops-cleanup / unattached-volumes
+# Finds EBS volumes that have been unattached for a while, opens one Jira ticket per volume and tells the team,
+# then (only after approval) deletes them. Adapted in spirit from turbot/flowpipe-mod-aws-thrifty (Apache-2.0).
+name: unattached_volume_cleanup
+title: Unattached EBS volume cleanup
+description: Finds EBS volumes unattached for N days, opens a Jira ticket for each, and deletes them after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select
+      volume_id,
+      region,
+      account_id,
+      size,
+      volume_type,
+      create_time
+    from aws_ebs_volume
+    where state = 'available'
+      and create_time < now() - interval '14 days'
+notify: true
+approval:
+  prompt: Delete these unattached volumes?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket per volume
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Unattached EBS volume {volume_id} ({size} GiB {volume_type}) in {region}"
+      description: "Volume {volume_id} in account {account_id} / {region} has been unattached since {create_time}."
+  - pipeline: aws.delete_ebs_volume
+    title: Delete the volume
+    gated: true
+    args:
+      volume_id: "{volume_id}"
+      region: "{region}"

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased (Phase 2, in progress)
+
+- **Mod spec** (`opslens.spec`): a small typed description of one detect-and-act automation, and a deterministic
+  **renderer** that turns it into a Flowpipe mod (`mod.fp`, `pipelines.fp`, `triggers.fp`, `spec.yaml`, `README.md`).
+  Every literal is escaped (no HCL injection); connections and notifiers are params, never inline secrets.
+- **Validator**: SQL guard + catalog allow-list, columns checked against `{placeholders}`, pipelines and params
+  checked against the pipeline catalog, enum/type checks, inline-secret refusal, schedule floor (5 min), and a
+  **hand-edit drift check** (generated files must match `spec.yaml`). `change` pipelines must sit behind approval;
+  additive `notify` pipelines (tickets, alerts, messages) may run ungated.
+- **Load check**: Flowpipe's own parser judges the generated mod (in a scratch copy).
+- `opslens pack list|show|install`, `render`, `validate`, `preview` (what a run would do right now, nothing executed).
+- First pack: `finops-cleanup/unattached-volumes` (Jira ticket per volume, delete after approval).
+- Demo data now takes the same Postgres SQL as live queries (transpiled), e.g. `now() - interval '14 days'`.
+- Fix: an unknown param named like a secret (`token`) is now refused as an inline secret.
+
 ## 0.1.0 (unreleased)
 
 First release (Phase 1): catalogs and the no-AI CLI.

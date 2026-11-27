@@ -45,6 +45,8 @@ catalog_app = typer.Typer(help="Inspect and verify the shipped catalogs.", no_ar
 app.add_typer(find_app, name="find")
 app.add_typer(describe_app, name="describe")
 app.add_typer(catalog_app, name="catalog")
+pack_app = typer.Typer(help="Curated automations that work with no AI.", no_args_is_help=True)
+app.add_typer(pack_app, name="pack")
 
 
 def _version_cb(value: bool) -> None:
@@ -300,6 +302,176 @@ def catalog_verify(config: ConfigOpt = None, set_: SetOpt = None) -> None:
     if not (missing_tables or drift or unknown):
         console.print("[green]catalog matches the installed plugins.[/green]")
     raise typer.Exit(1 if (missing_tables or drift or unknown) else 0)
+
+
+# ------------------------------------------------------------------ packs, render, validate, preview
+
+
+def _load_spec_arg(path: Path) -> tuple[Any, Path | None]:
+    """A spec file, or a generated mod directory (which holds spec.yaml). Returns (spec, mod_dir or None)."""
+    from .spec.model import load_spec
+
+    p = path / "spec.yaml" if path.is_dir() else path
+    if not p.is_file():
+        raise err(f"no spec found at {path} (expected a spec YAML or a generated mod directory)", 2)
+    try:
+        return load_spec(p.read_text()), (path if path.is_dir() else None)
+    except (ValueError, TypeError) as e:
+        raise err(f"{p}: invalid spec: {str(e).splitlines()[0] if len(str(e)) < 300 else str(e)[:300]}", 2) from e
+
+
+def _write_mod(files: dict[str, str], out: Path, force: bool) -> None:
+    if out.exists() and any(out.iterdir()) and not force:
+        raise err(f"{out} is not empty (use --force to overwrite)")
+    out.mkdir(parents=True, exist_ok=True)
+    for name, text in files.items():
+        (out / name).write_text(text)
+
+
+def _print_issues(issues: list[Any]) -> None:
+    for i in issues:
+        color = "red" if i.level == "error" else "yellow"
+        console.print(f"[{color}]{i.level}[/{color}] [dim]{i.code}[/dim] {i.where + ': ' if i.where else ''}{i.message}")
+
+
+@pack_app.command("list")
+def pack_list(fmt: FormatOpt = Format.table) -> None:
+    """The packs that ship with opslens."""
+    from . import packs
+
+    emit(packs.list_packs(), fmt, columns=["pack", "title", "trigger", "actions", "variables"])
+
+
+@pack_app.command("show")
+def pack_show(name: Annotated[str, typer.Argument(help="e.g. finops-cleanup/unattached-volumes")],
+              var: Annotated[list[str] | None, typer.Option("--var", help="name=value (repeatable).")] = None) -> None:
+    """Print a pack's spec (what you would be installing)."""
+    from . import packs
+
+    try:
+        spec = packs.get(name, dict(v.split("=", 1) for v in var or []))
+    except KeyError as e:
+        raise err(str(e.args[0])) from e
+    console.print(Syntax(spec.to_yaml(), "yaml", theme="ansi_dark"))
+
+
+@pack_app.command("install")
+def pack_install(name: Annotated[str, typer.Argument(help="e.g. finops-cleanup/unattached-volumes")],
+                 var: Annotated[list[str] | None, typer.Option("--var", help="name=value (repeatable).")] = None,
+                 out: Annotated[Path | None, typer.Option("--out", "-o", help="Parent directory (default flowpipe.workspace_dir).")] = None,
+                 force: Annotated[bool, typer.Option("--force")] = False,
+                 config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Render a pack into a Flowpipe mod: opslens pack install finops-cleanup/unattached-volumes --var jira_project=INFRA."""
+    from . import packs
+    from .spec import check, render
+
+    cfg, _ = load(config, set_)
+    try:
+        spec = packs.get(name, dict(v.split("=", 1) for v in var or []))
+    except (KeyError, ValueError) as e:
+        raise err(str(e.args[0])) from e
+    issues = check.validate(spec)
+    _print_issues(issues)
+    if check.errors(issues):
+        raise err("the pack does not validate; nothing written", 1)
+    dest = (out or Path(cfg.flowpipe.workspace_dir)) / spec.name
+    _write_mod(render.render(spec), dest, force)
+    console.print(f"Wrote [bold]{dest}[/bold]  (spec hash {render.spec_hash(spec)})")
+    console.print(f"next: [{BRAND}]opslens validate {dest}[/{BRAND}] then [{BRAND}]opslens preview {dest} --source demo[/{BRAND}]")
+
+
+@app.command("render")
+def render_cmd(spec_file: Annotated[Path, typer.Argument(help="A spec YAML.")],
+               out: Annotated[Path, typer.Option("--out", "-o", help="Directory to write the mod into.")] = Path("generated"),
+               force: Annotated[bool, typer.Option("--force")] = False) -> None:
+    """Validate a spec and render it into a Flowpipe mod (<out>/<spec name>/)."""
+    from .spec import check, render
+
+    spec, _ = _load_spec_arg(spec_file)
+    issues = check.validate(spec)
+    _print_issues(issues)
+    if check.errors(issues):
+        raise err("the spec does not validate; nothing written", 1)
+    dest = out / spec.name
+    _write_mod(render.render(spec), dest, force)
+    console.print(f"Wrote [bold]{dest}[/bold]  (spec hash {render.spec_hash(spec)})")
+
+
+@app.command()
+def validate(path: Annotated[Path, typer.Argument(help="A spec YAML or a generated mod directory.")],
+             load_check: Annotated[bool, typer.Option("--load/--no-load", help="Also load the mod with Flowpipe's own parser.")] = True,
+             config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Check a spec against the catalogs and safety rules, that generated files still match it, and that Flowpipe loads it."""
+    import tempfile
+
+    from .spec import check, render
+    from .validate.load import load_check as flowpipe_load
+
+    cfg, _ = load(config, set_)
+    spec, mod_dir = _load_spec_arg(path)
+    issues = check.validate(spec)
+    files = None
+    if not check.errors(issues):
+        files = render.render(spec)
+        if mod_dir:  # hand edits would make the reviewed spec and the deployed HCL diverge
+            for name, text in files.items():
+                f = mod_dir / name
+                if not f.exists():
+                    issues.append(check.Issue("error", "drift", f"{name} is missing; re-render with `opslens render`"))
+                elif f.read_text() != text:
+                    issues.append(check.Issue("error", "drift", f"{name} differs from what spec.yaml renders to (edited by "
+                                              "hand?). Change spec.yaml and re-render instead"))
+        if load_check and not check.errors(issues):
+            with tempfile.TemporaryDirectory() as tmp:
+                target = mod_dir or Path(tmp)
+                if not mod_dir:
+                    for name, text in files.items():
+                        (Path(tmp) / name).write_text(text)
+                issues += flowpipe_load(target, cfg.flowpipe.binary)
+    _print_issues(issues)
+    n_err = len(check.errors(issues))
+    console.print(f"[bold]{spec.name}[/bold]: " + (f"[red]{n_err} error(s)[/red]" if n_err else "[green]valid[/green]")
+                  + f"   spec hash {render.spec_hash(spec)}")
+    raise typer.Exit(1 if n_err else 0)
+
+
+@app.command("preview")
+def preview_cmd(path: Annotated[Path, typer.Argument(help="A spec YAML or a generated mod directory.")],
+                source: Annotated[Source, typer.Option("--source")] = Source.live,
+                sample: Annotated[int, typer.Option("--sample", help="Rows shown per action.")] = 3,
+                fmt: FormatOpt = Format.table, config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """What a run would do right now: items found, and each action's arguments. Reads only; changes nothing."""
+    from .spec import check
+    from .validate.preview import preview
+
+    cfg, _ = load(config, set_)
+    spec, _dir = _load_spec_arg(path)
+    errs = check.errors(check.validate(spec))
+    if errs:
+        _print_issues(errs)
+        raise err("fix the spec first (`opslens validate`)", 1)
+    try:
+        pv = preview(spec, source.value, cfg.steampipe)
+    except guard.UnsafeSQL as e:
+        raise err(f"refused: {e}", 3) from e
+    except client.SteampipeError as e:
+        raise err(str(e)) from e
+    if fmt is Format.json:
+        sys.stdout.write(json.dumps({"items": pv.items, "truncated": pv.truncated, "rows": pv.rows,
+                                     "actions": [a.__dict__ for a in pv.actions]}, indent=2, default=str) + "\n")
+        return
+    console.print(Panel(f"[bold]{pv.items}[/bold] item(s) found from {pv.source}"
+                        + (f"  [yellow](capped at {spec.detect.max_items})[/yellow]" if pv.truncated else ""),
+                        title=f"preview: {spec.title}", border_style=BRAND))
+    emit(pv.rows[:sample], Format.table, columns=pv.columns, note=f"first {min(sample, pv.items)} of {pv.items} row(s)")
+    for a in pv.actions:
+        tag = {"read": "[green]read[/green]", "notify": "[cyan]notify[/cyan]", "change": "[red]CHANGE[/red]"}.get(a.effect, a.effect)
+        gate = "after approval" if a.gated else "automatically"
+        console.print(f"\n[bold]{a.index}. {a.pipeline}[/bold]  {tag}  runs {gate}  x {len(a.calls)}")
+        for c in a.calls[:sample]:
+            console.print("   " + ", ".join(f"{k}={v!r}" for k, v in c.items()))
+    console.print(f"\n[bold]{pv.changes}[/bold] state change(s) would be requested; "
+                  "[bold]0[/bold] have been made (this was a preview).")
 
 
 def _entry() -> Any:  # pragma: no cover

@@ -43,6 +43,18 @@ def first_sentence(text: str, n: int = 150) -> str:
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
+NOTIFY_MODS = {"slack", "teams", "jira", "opsgenie", "gitlab", "clickup"}
+# additive, non-destructive writes: creating a ticket / alert / message / comment. Everything else that writes is a change.
+NOTIFY_NAME = re.compile(r"^(create|post|send|add|reply)_.*(issue|alert|incident|message|comment|task)(?!.*(user|group|member))")
+
+
+def effect_of(mod: str, short: str, risk: str) -> str:
+    """read | notify | change. Only `change` must sit behind an approval gate."""
+    if risk == "read":
+        return "read"
+    return "notify" if mod in NOTIFY_MODS and NOTIFY_NAME.match(short) else "change"
+
+
 @dataclass
 class Param:
     name: str
@@ -70,6 +82,10 @@ class Pipeline:
     risk: str
     tags: dict[str, str] = field(default_factory=dict)
     folder: str = ""
+
+    @property
+    def effect(self) -> str:
+        return effect_of(self.mod, self.short, self.risk)
 
     @property
     def recommended(self) -> bool:
@@ -167,6 +183,7 @@ class PipelineCatalog:
         p = self.pipelines[name]
         return {
             "pipeline": p.name, "mod": p.mod, "title": p.title, "description": p.description, "risk": p.risk,
+            "effect": p.effect,
             "params": [{"name": x.name, "type": x.type, "required": x.required,
                         **({"description": x.description} if x.description else {}),
                         **({"default": x.default} if x.default is not None else {}),

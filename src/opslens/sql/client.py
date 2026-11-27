@@ -106,15 +106,22 @@ def run_live(sql: str, cfg: SteampipeConfig, *, allowed: set[str] | frozenset[st
 
 
 def run_demo(sql: str, *, allowed: set[str] | frozenset[str] | None = None, max_rows: int = 1000) -> Result:
+    import sqlglot
+
     from ..demo import connect
 
-    text = guard.check_tables(sql, allowed, "sqlite") if allowed is not None else guard.check_select(sql, "sqlite")
+    # Demo data lives in SQLite, but queries are written (and guarded) as Postgres, exactly like live ones.
+    text = guard.check_tables(sql, allowed) if allowed is not None else guard.check_select(sql)
+    try:
+        lite = sqlglot.transpile(guard.parseable(text), read="postgres", write="sqlite")[0]
+    except sqlglot.errors.SqlglotError as e:
+        raise SteampipeError(f"cannot run this query on the demo data: {str(e).splitlines()[0]}") from e
     conn = connect()
     try:
         try:
-            cur = conn.execute(text)
+            cur = conn.execute(lite)
         except sqlite3.Error as e:
-            raise SteampipeError(f"{e} (demo data is SQLite: use json_extract(col, '$.Key') for JSON columns)") from e
+            raise SteampipeError(f"{e} (the demo data is a small SQLite copy; try `--source live` for this query)") from e
         cols = [d[0] for d in cur.description] if cur.description else []
         rows = cur.fetchmany(max_rows + 1)
     finally:
