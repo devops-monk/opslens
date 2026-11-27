@@ -1,0 +1,79 @@
+# Lint, offline tests, a wheel-install smoke test, and an offline Docker smoke test on every push and pull
+# request. Never touches a cloud account: tests use no credentials, and the container runs with --network none.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install opslens with dev extras
+        run: python -m pip install -e ".[dev]"
+
+      - name: Lint
+        run: python -m ruff check src tests scripts
+
+      - name: Unit and integration tests (offline)
+        run: python -m pytest
+
+  wheel:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build the wheel and run it from a clean environment (catalogs must ship inside it)
+        run: |
+          python -m pip wheel --no-deps --wheel-dir dist .
+          python -m venv /tmp/clean && /tmp/clean/bin/pip install --quiet dist/*.whl
+          cd /tmp && /tmp/clean/bin/opslens --version
+          /tmp/clean/bin/opslens catalog stats
+          /tmp/clean/bin/opslens find tables jira issues -n 1
+          /tmp/clean/bin/opslens query --source demo "select count(*) as n from aws_ebs_volume"
+
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: opslens:ci
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,mode=max,scope=ci
+      - name: Smoke test (offline, demo data, no credentials)
+        run: |
+          docker run --rm --network none opslens:ci --version
+          docker run --rm --network none opslens:ci search "unattached ebs volumes then open a jira ticket" > /dev/null
+          docker run --rm --network none opslens:ci query --source demo "select count(*) as n from aws_ebs_volume"
+          docker run --rm --network none -e OPSLENS_STEAMPIPE_SERVICE=on opslens:ci doctor | tee /tmp/doctor.txt
+          ! grep -q "not installed" /tmp/doctor.txt
+          docker run --rm --network none --entrypoint cat opslens:ci /usr/share/doc/opslens/NOTICE > /dev/null
+          test "$(docker image inspect opslens:ci --format '{{index .Config.Labels "org.opencontainers.image.licenses"}}')" = "Apache-2.0"

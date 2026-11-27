@@ -87,3 +87,24 @@ def test_demo_tables_and_columns_exist_in_the_real_catalog(tc):
         assert t is not None, f"demo table {name} is not in the catalog"
         unknown = set(rows[0]) - set(t.columns)
         assert not unknown, f"demo columns not in {name}: {unknown}"
+
+
+def test_doctor_parses_steampipe_plugin_list():
+    """Real `steampipe plugin list --output json` output (the key is `installed`, not `plugins`)."""
+    from opslens.doctor import installed_plugins
+
+    text = ('{"installed":[{"name":"hub.steampipe.io/plugins/jplanckeel/opsgenie@latest","version":"0.0.2",'
+            '"connections":["opsgenie"]},{"name":"hub.steampipe.io/plugins/turbot/aws@1.35.0","version":"1.35.0",'
+            '"connections":["aws"]}]}')
+    assert installed_plugins(text) == {"opsgenie": "0.0.2", "aws": "1.35.0"}
+
+
+def test_shipped_catalog_versions_match_the_pinned_plugins():
+    """versions.PLUGINS (what install.sh and the Dockerfile install) must be what the catalogs were built from."""
+    from opslens import versions
+
+    cat = tcat.load()
+    for plugin, meta in versions.PLUGINS.items():
+        pinned = meta["install"].split("@")[1] if "@" in meta["install"] else None
+        if pinned:
+            assert cat.plugins[plugin] == pinned, f"{plugin}: catalog {cat.plugins[plugin]} vs pinned {pinned}"

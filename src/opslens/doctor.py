@@ -62,15 +62,29 @@ def run_checks(cfg: Config, *, offline: bool = False) -> list[Check]:
         return out
     out.append(Check("steampipe service", "ok", f"port {st.get('port', cfg.steampipe.port)}"))
     try:
-        r = subprocess.run(["steampipe", "plugin", "list", "--output", "json"], check=False, capture_output=True, text=True, timeout=30)
-        import json
-
-        installed = {p["name"].split("/")[-1].split("@")[0] for p in json.loads(r.stdout).get("plugins", [])}
-    except (OSError, ValueError, subprocess.SubprocessError, KeyError):
-        installed = set()
+        r = subprocess.run(["steampipe", "plugin", "list", "--output", "json"], check=False, capture_output=True,
+                           text=True, timeout=30)
+        installed = installed_plugins(r.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError, KeyError, TypeError) as e:
+        out.append(Check("steampipe plugins", "warn", f"could not list installed plugins ({type(e).__name__})",
+                         "steampipe plugin list"))
+        return out
     for plugin, meta in versions.PLUGINS.items():
-        if plugin in installed:
-            out.append(Check(f"plugin {plugin}", "ok", "installed"))
-        else:
+        if plugin not in installed:
             out.append(Check(f"plugin {plugin}", "warn", "not installed", f"steampipe plugin install {meta['install']}"))
+            continue
+        have, want = installed[plugin], tc.plugins.get(plugin, "")
+        if want and have != want:
+            out.append(Check(f"plugin {plugin}", "warn", f"installed {have}, catalog built for {want}: run "
+                             "`opslens catalog verify` to see what differs"))
+        else:
+            out.append(Check(f"plugin {plugin}", "ok", f"installed {have}"))
     return out
+
+
+def installed_plugins(text: str) -> dict[str, str]:
+    """`steampipe plugin list --output json` -> {short plugin name: version}."""
+    import json
+
+    data = json.loads(text)
+    return {p["name"].split("/")[-1].split("@")[0]: p.get("version", "") for p in data["installed"]}
