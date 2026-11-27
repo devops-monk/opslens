@@ -74,6 +74,17 @@ The model only ever sees your sentence and public catalog metadata (table and co
 
 The model fills in a spec; it never writes pipeline code. The result goes through the same validator as the packs, and validation errors are sent back to the model for up to three attempts. `auto_apply` is forced off, so anything that changes state still waits for your approval. Read it with `opslens explain <mod>`, then `preview` and `deploy` as usual.
 
+## Web app
+
+```bash
+pip install 'opslens[web]'
+opslens serve                 # http://127.0.0.1:8077, the full workflow on your machine
+```
+
+Three tabs: **Find** (search tables and pipelines), **Build** (start from a pack or write a spec, checked as you type, preview on sample or live data, draft with AI if a provider is configured) and **Mods** (save, deploy, run, answer approvals, read the audit log). Deploying still needs the exact spec hash you reviewed.
+
+Local mode binds to loopback only, rejects unknown Host headers, and requires a per-session token on every state-changing call. `opslens serve --mode demo` is the public variant: sample data only, nothing saved, deployed or run, no AI, input limits and rate limiting.
+
 ## Exit codes
 
 | code | meaning |

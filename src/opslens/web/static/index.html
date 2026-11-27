@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>opslens app</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230071e3'/%3E%3Ccircle cx='14' cy='14' r='6' fill='none' stroke='white' stroke-width='2.6'/%3E%3Cpath d='M18.6 18.6 24 24' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<nav class="top" aria-label="Main"><div class="wrap">
+  <span class="brand">opslens</span>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="find" aria-selected="true">Find</button>
+    <button class="tab" role="tab" data-tab="build" aria-selected="false">Build</button>
+    <button class="tab" role="tab" data-tab="mods" aria-selected="false" id="tab-mods" hidden>Mods</button>
+  </div>
+  <span class="badge" id="badge"></span>
+</div></nav>
+<main class="wrap">
+  <div class="banner" id="banner" hidden></div>
+
+  <section id="p-find">
+    <h1>Find</h1><p class="lede">Describe what you want. Data and actions are matched separately.</p>
+    <div class="search"><input id="q" type="search" autocomplete="off" placeholder="unattached ebs volumes older than 14 days, then open a jira ticket" aria-label="Describe what you want"></div>
+    <div id="found"></div>
+  </section>
+
+  <section id="p-build" hidden>
+    <h1>Build</h1><p class="lede">Start from a pack or write a spec. It is checked as you type; nothing runs until you deploy.</p>
+    <div class="cols2">
+      <div>
+        <div class="row"><select id="pack" aria-label="Start from a pack" class="grow"><option value="">Start from a pack…</option></select></div>
+        <div id="askbox" class="sp" hidden>
+          <textarea class="ask" id="ask" rows="2" placeholder="Or describe it and let the AI draft the spec…"></textarea>
+          <div class="row sp"><button class="pill ghost sm" id="gen">Draft with AI</button><span class="muted" id="genmsg"></span></div>
+        </div>
+        <textarea class="spec sp" id="spec" spellcheck="false" aria-label="Spec YAML"></textarea>
+      </div>
+      <div>
+        <div class="card" id="result"><span class="muted">Pick a pack or paste a spec.</span></div>
+        <div class="row sp" id="actions" hidden>
+          <button class="pill primary" id="prev">Preview with sample data</button>
+          <button class="pill ghost" id="prevlive" hidden>Preview live</button>
+          <button class="pill ghost" id="save" hidden>Save to workspace</button>
+        </div>
+        <div id="preview" class="sp"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="p-mods" hidden>
+    <h1>Mods</h1><p class="lede">Saved specs in your workspace. Deploying needs the exact spec hash you reviewed.</p>
+    <div id="modlist"></div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

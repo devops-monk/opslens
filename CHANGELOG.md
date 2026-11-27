@@ -13,6 +13,9 @@
 - `opslens pack list|show|install`, `render`, `validate`, `preview` (what a run would do right now, nothing executed).
 - First pack: `finops-cleanup/unattached-volumes` (Jira ticket per volume, delete after approval).
 - Demo data now takes the same Postgres SQL as live queries (transpiled), e.g. `now() - interval '14 days'`.
+- **Web app (Phase 4)**: `opslens serve` (FastAPI + a single-page UI): Find, Build and Mods tabs over the same engine. Local mode (loopback only,
+  Host allow-list, per-session token) does the full workflow; `--mode demo` is public-safe (sample data, no writes, no AI, rate limited).
+  Spec YAML now writes multi-line SQL as readable `|` blocks.
 - **AI planner (Phase 3)**: `opslens generate` turns a requirement into a validated spec and mod; `opslens explain` reads any spec in
   plain English (no AI). Providers: anthropic (SDK, adaptive thinking, prompt caching, refusal fallback), openai, openai_compatible, glm,
   openrouter, ollama (plain HTTP, no extra dependency) and litellm (azure, bedrock, gemini...). Catalog-grounded prompt, validator feedback

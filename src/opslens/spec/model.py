@@ -29,6 +29,19 @@ SLUG = re.compile(r"^[a-z][a-z0-9_]{1,62}$")
 PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_.]*)\}")
 
 
+class _BlockDumper(yaml.SafeDumper):
+    """Multi-line strings (the detect SQL) are written as readable `|` blocks, not escaped one-liners."""
+
+
+def _str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
+    clean = "\n" in data and data == data.rstrip() + ("\n" if data.endswith("\n") else "") and \
+        not any(line != line.rstrip() for line in data.splitlines())
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|" if clean else None)
+
+
+_BlockDumper.add_representer(str, _str)
+
+
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -83,7 +96,7 @@ class Spec(_Strict):
         return [a for a in self.actions if a.gated]
 
     def to_yaml(self) -> str:
-        return yaml.safe_dump(self.model_dump(exclude_defaults=False, mode="json"), sort_keys=False, width=110)
+        return yaml.dump(self.model_dump(exclude_defaults=False, mode="json"), Dumper=_BlockDumper, sort_keys=False, width=110)
 
 
 def load_spec(text: str) -> Spec:

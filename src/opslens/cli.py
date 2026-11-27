@@ -660,6 +660,32 @@ def explain(path: Annotated[Path, typer.Argument(help="A spec YAML or generated 
         console.print(f"- {line}")
 
 
+@app.command()
+def serve(host: Annotated[str, typer.Option("--host", help="Bind address.")] = "127.0.0.1",
+          port: Annotated[int, typer.Option("--port")] = 8077,
+          mode: Annotated[str, typer.Option("--mode", help="local: full workflow on your machine. demo: sample data only, safe to expose.")] = "local",
+          workspace: Annotated[Path | None, typer.Option("--workspace", help="Where mods are saved (default flowpipe.workspace_dir).")] = None,
+          allow_host: Annotated[list[str] | None, typer.Option("--allow-host", help="Extra Host header to accept (repeatable).")] = None,
+          trust_proxy: Annotated[bool, typer.Option("--trust-proxy", help="Use X-Forwarded-For for rate limiting (behind nginx).")] = False,
+          config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Run the web app. Local mode binds to loopback only; --mode demo is the public, sample-data-only variant."""
+    if mode not in ("local", "demo"):
+        raise err("--mode must be local or demo", 2)
+    if mode == "local" and host not in ("127.0.0.1", "localhost", "::1"):
+        raise err("local mode can deploy and run pipelines, so it only binds to loopback. "
+                  "To share it publicly use --mode demo (sample data, read-only).", 2)
+    try:
+        import uvicorn
+
+        from .web.app import create_app
+    except ImportError as e:
+        raise err("the web app needs extra packages: pip install 'opslens[web]'") from e
+    cfg, _ = load(config, set_)
+    web = create_app(cfg, mode=mode, workspace=workspace, allow_hosts=tuple(allow_host or ()), trust_proxy=trust_proxy)
+    console.print(f"opslens app ({mode}) on [bold]http://{host}:{port}[/bold]")
+    uvicorn.run(web, host=host, port=port, log_level="warning")
+
+
 def _entry() -> Any:  # pragma: no cover
     return app()
 
