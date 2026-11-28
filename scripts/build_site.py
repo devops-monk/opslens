@@ -206,6 +206,7 @@ def actions_md() -> str:
              ("slack", "Slack", "A `connection \"slack\"` (a token), or just a webhook URL for `post_message_to_webhook`"),
              ("opsgenie", "Opsgenie", "A `connection \"opsgenie\"` (alert and incident API keys)"),
              ("gitlab", "GitLab", "A `connection \"gitlab\"` (a personal access token)"),
+             ("ipstack", "ipstack", "A `connection \"ipstack\"` (an access key)"),
              ("aws", "AWS", "A `connection \"aws\"` (profile or keys) **and a running Docker daemon**: these pipelines run the AWS CLI in a container")]
     mark = {"read": "read", "notify": "notify", "change": "**change**"}
     out = ["# Actions reference",

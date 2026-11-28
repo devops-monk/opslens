@@ -207,6 +207,18 @@ connection "aws" "aws_access_key_pair" {
 
 This matters for the [team Docker image](../hosting/): it has no Docker daemon inside, so AWS actions cannot run in it as shipped. Reading AWS, previews, and every non-AWS action work. To run the AWS actions, run opslens on a host that has Docker ([the installer or pip](../install/)), and treat giving a container the host's Docker socket as a privileged setup you test for yourself.
 
+## ipstack (IP lookup)
+
+Look up an IP address, or the caller's own address. Act side only: `IPSTACK_ACCESS_KEY`, or `~/.flowpipe/config/ipstack.fpc`:
+
+```hcl
+connection "ipstack" "default" {
+  access_key = "<your ipstack access key>"
+}
+```
+
+The mod calls `http://api.ipstack.com`, plain HTTP, so use a key you can rotate. A bad key answers `401 Unauthorized`. A worked example is in the [AI guide](../ai/#bonus-find-this-machines-public-ip-with-the-ipstack-mod). The `abuseipdb`, `ip2locationio` and `ipstack` mods work the same way for reputation and location lookups.
+
 ## Make a connection once, use it everywhere
 
 Everything above is configured once per machine or container, not per automation. After that, any [template](../packs/) or [AI-drafted spec](../ai/) that uses the service just works, and the [Actions reference](../actions/) lists every action you can use with it.

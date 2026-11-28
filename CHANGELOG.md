@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Docs: worked example for finding this machine's public IP with the ipstack Flowpipe mod; ipstack added to the integrations guide and actions reference.
+
 ## 0.3.1 (2026-11-28)
 
 - Docs: a step-by-step AI setup guide with a worked "find the IP addresses" example, a **Connect your services** guide (Teams, Slack,

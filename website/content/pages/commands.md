@@ -100,6 +100,16 @@ OPSLENS_TEAM_PASSWORD='a long shared password' \
 
 See [Host it for your team](../docs/hosting/).
 
+## Find an IP address
+
+```bash
+opslens query "select instance_id, public_ip_address, private_ip_address, region from aws_ec2_instance where instance_state = 'running'"   # IPs in your AWS account
+opslens describe pipeline ipstack.lookup_requester_ip_address   # the action that finds THIS machine's public IP
+curl ifconfig.me                                                # the plain, no-account way
+```
+
+To run the ipstack lookup itself (a free key and a folder that uses the mod), follow the [worked example](../docs/ai/#bonus-find-this-machines-public-ip-with-the-ipstack-mod).
+
 ## Common recipes
 
 **Find where an IP lives.**

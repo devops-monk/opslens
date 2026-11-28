@@ -6,7 +6,7 @@ Everything in opslens works without AI. If you would rather describe an automati
 
 This walks the whole path after [installing](../install/): check opslens, give it a model, ask a real question, read the answer, run it. The example is **"find the IP addresses of my running servers"**, which uses nothing but AWS data.
 
-> **Note.** opslens reads the cloud accounts you connect. It cannot tell you *this computer's* public IP address (`curl ifconfig.me` does that). What it answers is "which IPs does my AWS account have", which is the version of the question automations care about.
+> **Note.** opslens reads the cloud accounts you connect. On its own it answers "which IPs does my AWS account have", which is the version of the question automations care about. For *this computer's* public IP and its location, the [bonus step](#bonus-find-this-machines-public-ip-with-the-ipstack-mod) uses the ipstack Flowpipe mod.
 
 ### 1. Check the install
 
@@ -138,6 +138,28 @@ first 3 of 8 row(s)
 opslens query "select instance_id, public_ip_address, private_ip_address, region
                from aws_ec2_instance where instance_state = 'running'"
 ```
+
+### Bonus: find *this machine's* public IP with the ipstack mod
+
+The steps above list the IPs in your **cloud account**. To find the public IP of the machine you are on, and where it is, use the Flowpipe [ipstack mod](https://hub.flowpipe.io/mods/turbot/ipstack). Its `lookup_requester_ip_address` action asks the ipstack service who is calling and returns the details. opslens already knows it: `opslens describe pipeline ipstack.lookup_requester_ip_address` shows its parameters (all three are required, and it is a read-only action).
+
+```bash
+# 1. a key: create a free ipstack account and copy its access key
+export IPSTACK_ACCESS_KEY="<your key>"
+
+# 2. a folder that uses the mod
+mkdir my-ip && cd my-ip
+flowpipe mod init
+flowpipe mod install github.com/turbot/flowpipe-mod-ipstack
+
+# 3. ask
+flowpipe pipeline run ipstack.pipeline.lookup_requester_ip_address \
+  --arg output_type=json --arg security_module=0 --arg fields=ip,city,country_name
+```
+
+`fields` limits what comes back (here the IP, city and country); the result is in the pipeline's `requester_ip_address_details` output. With a wrong key, you get `401 Unauthorized`, which tells you the request reached ipstack and the key was refused. To look up any other address, for example one from the `aws_ec2_instance` query above, use `ipstack.pipeline.lookup_ip_address` and add `--arg ip_address=203.0.113.11`.
+
+Two things to know. The mod calls ipstack over plain `http://` (as far as I know ipstack's free plan is HTTP-only; check their plans), so the key is sent unencrypted: use a key you can rotate. And the `security_module` option needs a paid ipstack plan, so keep it `0`. You can also keep the key in `~/.flowpipe/config/ipstack.fpc` as a `connection "ipstack" "default" { access_key = "..." }`.
 
 ### 8. Connect Teams (or Slack), then deploy
 
