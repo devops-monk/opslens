@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.1 (2026-11-28)
+
+A redesigned web app, website and docs. No change to specs, rendering or safety behaviour.
+
+- **Web app**: Zapier-style builder (trigger, find, actions, approval) with a template gallery, action picker, plain-English summary,
+  Test panel, YAML dialog, Explore and My automations. New endpoints `/api/columns`, `/api/pipelines`, `/api/mods/{name}`; richer `/api/packs`.
+- **Website**: new landing page with screenshots, feature explanations, use cases and install options (one command, pipx/pip, Docker, source).
+- **Docs**: restructured into grouped pages (Get started, Build automations, Trust and help, Reference) with sidebar filter, table of contents and pager.
+- `scripts/screenshots.mjs` regenerates the site screenshots; `pillow` added to the dev extras for the site build.
+
+## 0.2.0 (2026-11-27)
 
 Phases 2 to 5: specs and packs, deploy and run, AI planner, web app, docs and packaging.
 

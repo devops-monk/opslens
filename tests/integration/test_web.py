@@ -145,3 +145,80 @@ def test_demo_mode_rate_limits(tmp_path):
 
 def test_demo_mode_never_exposes_a_real_provider(demo):
     assert demo.get("/api/meta").json()["ai"] is False
+
+
+# ---- the visual builder sends the spec as an object; these endpoints back it
+
+
+def pack_spec(name=PACK):
+    return packs.get(name).model_dump(mode="json")
+
+
+def test_validate_accepts_a_structured_spec_and_returns_what_the_builder_needs(demo):
+    v = demo.post("/api/validate", json={"spec": pack_spec()}).json()
+    assert v["ok"] and v["hash"] and v["columns"][:2] == ["volume_id", "region"]
+    assert v["spec"]["name"] == "unattached_volume_cleanup" and "name: unattached_volume_cleanup" in v["yaml"]
+    assert v["gated"] == ["aws.delete_ebs_volume"] and v["explain"]
+
+
+def test_validate_reports_a_half_built_spec_instead_of_failing(demo):
+    half = {"name": "x_y", "title": "T", "detect": {"sql": "select volume_id from aws_ebs_volume"}, "actions": []}
+    r = demo.post("/api/validate", json={"spec": half})
+    assert r.status_code == 200 and r.json()["ok"] is False and r.json()["issues"][0]["code"] == "spec"
+    bad = demo.post("/api/validate", json={"spec": {**half, "actions": [{"pipeline": "jira.create_issue", "args": {}}]}}).json()
+    assert not bad["ok"] and {i["code"] for i in bad["issues"]} == {"arg-missing"}
+    assert demo.post("/api/validate", json={}).status_code == 422  # neither yaml nor spec: still a hard error
+
+
+def test_structured_and_yaml_forms_give_the_same_hash(demo):
+    a = demo.post("/api/validate", json={"spec": pack_spec()}).json()["hash"]
+    b = demo.post("/api/validate", json={"yaml": pack_yaml()}).json()["hash"]
+    assert a == b
+
+
+def test_a_write_still_needs_its_gate_in_the_structured_form(demo):
+    s = pack_spec()
+    for a in s["actions"]:
+        a["gated"] = False
+    v = demo.post("/api/validate", json={"spec": s}).json()
+    assert not v["ok"] and any(i["code"] == "ungated-write" for i in v["issues"])
+
+
+def test_preview_and_save_take_a_structured_spec(local, tmp_path):
+    p = local.post("/api/preview", json={"spec": pack_spec(), "source": "demo"}).json()
+    assert p["items"] > 0 and p["changes"] > 0
+    assert local.post("/api/mods", json={"spec": pack_spec()}, headers=H()).status_code == 200
+    got = local.get("/api/mods/unattached_volume_cleanup", headers=H()).json()
+    assert got["spec"]["title"] and got["hash"] and "name:" in got["yaml"]
+    assert local.get("/api/mods/nope", headers=H()).status_code == 404
+
+
+def test_pack_list_has_what_the_gallery_shows(demo):
+    rows = {r["pack"]: r for r in demo.get("/api/packs").json()}
+    r = rows[PACK]
+    assert r["category"] == "finops-cleanup" and r["apps"] == ["aws", "jira"] and r["schedule"] == "daily" and r["description"]
+    assert [(s["effect"], s["gated"]) for s in r["steps"]] == [("notify", False), ("change", True)]
+    assert rows["incident/incident-copilot"]["apps"] == ["gitlab", "jira", "opsgenie", "teams"]
+    assert rows["incident/incident-copilot"]["schedule"] == ""
+
+
+def test_action_picker_and_column_helper(demo):
+    hits = demo.get("/api/pipelines?q=open a jira ticket").json()
+    assert hits[0]["pipeline"] == "jira.create_issue" and {p["name"] for p in hits[0]["params"]} >= {"project_key", "summary"}
+    assert all(not p["name"].startswith("cnx") for h in hits for p in h["params"])
+    assert demo.get("/api/pipelines").json()  # a useful starter list with no query
+    core = {"aws", "aws_tags", "aws_thrifty", "gitlab", "jira", "opsgenie", "teams"}
+    assert {h["mod"] for h in demo.get("/api/pipelines?q=send a message").json()} <= core  # supported services only by default
+    assert any(h["mod"] == "slack" for h in demo.get("/api/pipelines?q=slack send message&other=true").json())
+    ok = demo.post("/api/columns", json={"sql": "select volume_id as v, region from aws_ebs_volume"}).json()
+    assert ok == {"ok": True, "columns": ["v", "region"], "error": ""}
+    assert "SELECT *" in demo.post("/api/columns", json={"sql": "select * from aws_ebs_volume"}).json()["error"]
+    assert not demo.post("/api/columns", json={"sql": "drop table aws_ebs_volume"}).json()["ok"]
+    assert not demo.post("/api/columns", json={"sql": "select a from not_a_table"}).json()["ok"]
+
+
+def test_structured_spec_size_is_limited(demo):
+    s = pack_spec()
+    s["description"] = "x" * 25_000
+    assert demo.post("/api/validate", json={"spec": s}).status_code in (200, 422)
+    assert demo.post("/api/preview", json={"spec": s, "source": "demo"}).status_code == 422

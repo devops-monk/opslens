@@ -1,7 +1,44 @@
 {% extends "base.html" %}
+{% macro href(slug) %}{{ root }}docs/{{ slug ~ "/" if slug else "" }}{% endmacro %}
 {% block body %}
-<div class="wrap narrow doc">
-  <div class="sidenav">{% for d in docs %}<a class="chip" href="{{ root }}{{ d.url }}"{% if d.slug==slug %} aria-current="page" style="background:var(--fg);color:var(--bg)"{% endif %}>{{ d.title }}</a>{% endfor %}</div>
-  {{ content|safe }}
+<div class="docs">
+  <aside class="sidebar" aria-label="Documentation">
+    <button class="docnav-toggle" type="button" aria-expanded="false" aria-controls="docnav"><span>Browse docs</span><span class="cur">{{ doc.title }}</span></button>
+    <div class="docnav" id="docnav">
+      <label class="doc-filter"><span class="sr-only">Filter documentation</span>{{ icon('search') }}<input type="search" placeholder="Filter" autocomplete="off" spellcheck="false"></label>
+      {% for group, pages in nav %}
+      <div class="docgroup">
+        <h4>{{ group }}</h4>
+        <ul>{% for p in pages %}<li><a href="{{ href(p.slug) }}"{% if p.slug == doc.slug %} aria-current="page"{% endif %}><span class="ico">{{ p.icon }}</span>{{ p.title }}</a></li>{% endfor %}</ul>
+      </div>
+      {% endfor %}
+      <p class="doc-empty" hidden>No matching pages.</p>
+    </div>
+  </aside>
+  <article class="prose" id="top">
+    <header class="doc-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="{{ href('') }}">Docs</a>{% if doc.slug %}<span aria-hidden="true">›</span>{{ doc.group }}{% endif %}</nav>
+      <div class="doc-icon" aria-hidden="true">{{ doc.icon }}</div>
+      <h1>{{ doc.h1 }}</h1>
+      {% if doc.lead %}<p class="lead">{{ doc.lead }}</p>{% endif %}
+    </header>
+    {% if not doc.slug %}
+    <section class="topics" aria-label="Topics">
+      {% for group, pages in topics %}
+      <h2 class="topics-h">{{ group }}</h2>
+      <div class="topic-grid">{% for p in pages %}
+        <a class="topic" href="{{ href(p.slug) }}"><span class="topic-ico" aria-hidden="true">{{ p.icon }}</span><b>{{ p.title }}</b><span>{{ p.desc }}</span></a>{% endfor %}
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+    {{ doc.html }}
+    {% if doc.edit %}<p class="doc-edit"><a href="{{ doc.edit }}">Edit this page on GitHub ›</a></p>{% endif %}
+    <nav class="pager" aria-label="Pagination">
+      {% if prev %}<a href="{{ href(prev.slug) }}"><span>Previous</span>{{ prev.title }}</a>{% else %}<i></i>{% endif %}
+      {% if next %}<a class="next" href="{{ href(next.slug) }}"><span>Next</span>{{ next.title }}</a>{% endif %}
+    </nav>
+  </article>
+  <aside class="toc" aria-label="On this page">{% if doc.toc %}<h4>On this page</h4>{{ doc.toc }}<a class="toc-top" href="#top">Back to top ↑</a>{% endif %}</aside>
 </div>
 {% endblock %}

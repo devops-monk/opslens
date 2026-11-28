@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="wrap" style="padding-top:64px;padding-bottom:84px">
-  <div class="eyebrow" style="text-align:center">Explore</div>
-  <h1 style="font-size:clamp(34px,5vw,56px);text-align:center">What do you want to do?</h1>
-  <p class="lede" style="font-size:clamp(17px,2vw,21px)">Type a requirement. The explorer splits it into <b>data</b> and <b>actions</b> and finds the exact tables and pipelines. Everything runs in your browser from the same catalogs the CLI uses.</p>
+<div class="explore">
+  <p class="eyebrow">Explore</p>
+  <h1>What do you want to do?</h1>
+  <p class="lede">Type a requirement. The explorer splits it into <b>data</b> and <b>actions</b> and finds the exact tables and pipelines. It runs entirely in your browser, from the same catalogs the app and the command line use.</p>
   <div class="explorer">
-    <div class="search" role="search"><input id="q" type="search" autocomplete="off" autofocus placeholder="unattached ebs volumes, then open a jira ticket and post to teams" aria-label="Describe what you want to do"></div>
+    <div class="search" role="search">{{ icon('search') }}<input id="q" type="search" autocomplete="off" autofocus placeholder="unattached ebs volumes, then open a jira ticket and post to teams" aria-label="Describe what you want to do"></div>
     <div class="chips" id="modes" role="group" aria-label="What to search">
       <button class="chip" data-mode="all" aria-pressed="true">Everything</button>
       <button class="chip" data-mode="tables" aria-pressed="false">Tables</button>

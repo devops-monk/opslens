@@ -1,80 +1,192 @@
 {% extends "base.html" %}
+{% macro framed(name, alt, eager=false) %}{% set s = shot(name) %}<figure class="shot"><div class="frame"><i></i><i></i><i></i></div><img src="{{ root }}{{ s.src }}" width="{{ s.w }}" height="{{ s.h }}" alt="{{ alt }}"{% if not eager %} loading="lazy"{% endif %}></figure>{% endmacro %}
+{% macro badge(key, label, size=36) %}<span class="app {{ key }}" style="--s:{{ size }}px" title="{{ key|capitalize }}">{{ label }}</span>{% endmacro %}
+{% macro feature(id, flip, eyebrow, title, lead, image, alt, points, doc, docLabel) %}
+<section class="feature{{ ' flip' if flip else '' }}" id="{{ id }}">
+  <div class="feature-copy">
+    <p class="eyebrow">{{ eyebrow }}</p>
+    <h3>{{ title }}</h3>
+    <p class="lede">{{ lead }}</p>
+    <ul class="ticks">{% for p in points %}<li>{{ icon('check') }}<span>{{ p }}</span></li>{% endfor %}</ul>
+    <a class="more" href="{{ root }}docs/{{ doc }}/">{{ docLabel }} {{ icon('arrow') }}</a>
+  </div>
+  <div class="feature-shot">{{ framed(image, alt) }}</div>
+</section>
+{% endmacro %}
 {% block body %}
-<div class="wrap hero">
-  <div class="eyebrow">opslens</div>
-  <h1>Say what you want done.<br><span class="grad">Get a pipeline you can trust.</span></h1>
-  <p class="lede">Plain-English ops requirements become Flowpipe pipelines you can read, review and approve. It knows every table you can query and every action you can take across AWS, GitLab, Jira, Opsgenie and Teams. No AI required.</p>
-  <div class="cta"><a class="pill primary" href="app/">Try the app</a><a class="pill ghost" href="explore/">Explore the catalogs ›</a><a class="pill ghost" href="docs/#install">Install ›</a></div>
-  <div class="term" role="img" aria-label="Terminal showing opslens search splitting a requirement into data and action">
-    <div class="bar"><i></i><i></i><i></i></div>
-<pre><span class="p">$</span> opslens search "unattached ebs volumes older than 14 days, then open a jira ticket and post to teams"
-
-<span class="d">Data</span> (Steampipe tables)
-  <span class="k">aws_ebs_volume</span>          volumes, status, tags, attachments
-<span class="d">Action</span> for: open a jira ticket
-  <span class="k">jira.create_issue</span>       <span class="o">notify</span>   Create a new issue in a Jira project.
-<span class="d">Action</span> for: post to teams
-  <span class="k">teams.send_channel_message</span>  <span class="o">notify</span>   Send a new chat message in the channel.
-
-<span class="p">$</span> opslens preview generated/unattached_volume_cleanup --source demo
-  <span class="g">8 items found</span>
-  1. jira.create_issue          <span class="o">notify</span>   runs automatically  x 8
-  2. aws.delete_ebs_volume      <span class="r">CHANGE</span>   runs after approval  x 8
-  <span class="g">0 state changes made (this was a preview)</span></pre>
+<section class="hero">
+  <div class="hero-in">
+    <p class="pill-tag">{{ icon('bolt') }} Open source · works without AI</p>
+    <h1>Say what you want done.<br><span class="grad">Get an automation you can trust.</span></h1>
+    <p class="sub">opslens turns an ops requirement into a flow you can read, test and approve, across AWS, GitLab, Jira, Opsgenie and Microsoft Teams. Pick a template, build it visually, or describe it in a sentence.</p>
+    <div class="cta">
+      <a class="btn primary lg" href="{{ root }}app/">Try the live demo</a>
+      <a class="btn ghost lg" href="#install">Install in one command</a>
+    </div>
+    <div class="cmd" role="group" aria-label="Install command"><code>curl -fsSL https://opslens.devops-monk.com/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://opslens.devops-monk.com/install.sh | sh" aria-label="Copy install command">{{ icon('copy') }}</button></div>
+    <p class="fine">macOS and Linux · no sudo · installs Flowpipe, Steampipe and the plugins · <a href="{{ root }}docs/install/">other ways</a></p>
   </div>
-</div>
+  <div class="hero-shot">{{ framed('builder', 'The opslens builder: a trigger, a query, two actions and an approval in one flow', true) }}</div>
+</section>
 
-<section class="alt"><div class="wrap">
-  <h2>Two catalogs. Nothing guessed.</h2>
-  <p class="sub">A requirement has two halves: what to look at, and what to do about it. opslens ships the answer key for both, built from source and checked against the real plugins.</p>
-  <div class="grid g4">
-    <div class="card"><div class="n">{{ stats.tables }}</div><div class="lab">Steampipe tables</div></div>
-    <div class="card"><div class="n">{{ stats.columns }}</div><div class="lab">columns with types</div></div>
-    <div class="card"><div class="n">{{ stats.pipelines }}</div><div class="lab">Flowpipe pipelines</div></div>
-    <div class="card"><div class="n">{{ stats.mods }}</div><div class="lab">library mods, {{ stats.plugins }} plugins</div></div>
+<section class="works" aria-label="Works with">
+  <p>Works with</p>
+  <div class="works-row">
+    <span>{{ badge('aws', 'aws', 32) }}AWS</span><span>{{ badge('gitlab', 'GL', 32) }}GitLab</span><span>{{ badge('jira', 'Ji', 32) }}Jira</span><span>{{ badge('opsgenie', 'Og', 32) }}Opsgenie</span><span>{{ badge('teams', 'Tm', 32) }}Microsoft Teams</span>
   </div>
-</div></section>
+  <p class="small">through <a href="https://steampipe.io">Steampipe</a> (read) and <a href="https://flowpipe.io">Flowpipe</a> (act): {{ stats.tables }} tables and {{ stats.pipelines }} actions, ready to use.</p>
+</section>
 
-<section><div class="wrap">
-  <h2>From a sentence to a safe run.</h2>
-  <p class="sub">Every step is plain text you can read, diff and keep in git.</p>
-  <div class="grid g3 steps">
-    <div class="step"><h3>Find</h3><p style="color:var(--fg2)">Describe what you want. opslens splits it into data and action, and finds the exact tables, columns and pipelines. Offline, instant, no AI.</p></div>
-    <div class="step"><h3>Review</h3><p style="color:var(--fg2)">A small spec becomes a Flowpipe mod. Validate it, then preview what a run would do right now: how many items, which actions, which values. Nothing executes.</p></div>
-    <div class="step"><h3>Approve</h3><p style="color:var(--fg2)">Deploy only the exact spec hash you reviewed. Anything that changes state waits for a human answer in Slack, Teams or the terminal.</p></div>
+<section class="how" id="how">
+  <div class="head"><p class="eyebrow">How it works</p><h2>From a requirement to an approved run</h2><p class="lede">Four steps. Nothing before the last one can change anything.</p></div>
+  <ol class="steps4">
+    <li><span class="num">1</span><div class="ico">{{ icon('layout') }}</div><h3>Describe it</h3><p>Pick a template, build it step by step, or write a sentence. All three make the same small spec.</p></li>
+    <li><span class="num">2</span><div class="ico">{{ icon('eye') }}</div><h3>Review it</h3><p>Read it in plain English. opslens checks every table, column, parameter and safety rule as you go.</p></li>
+    <li><span class="num">3</span><div class="ico">{{ icon('flask') }}</div><h3>Test it</h3><p>See the rows it finds and the exact message or call each action would send. <b>0 changes made.</b></p></li>
+    <li><span class="num">4</span><div class="ico">{{ icon('shield') }}</div><h3>Approve it</h3><p>Deploy the exact spec you reviewed. Anything that changes things waits for your yes, and is logged.</p></li>
+  </ol>
+</section>
+
+<div id="features"></div>
+{{ feature('f-builder', false, 'Visual builder', 'Build it like a flow, not a script',
+  'A trigger, what to find, what to do, and where a person must say yes. Click any step to edit it; the page checks your work as you type.',
+  'builder', 'The builder with an action panel open',
+  ['Search every action across five services and add it in two clicks', 'Insert values from each row into any field with one click', 'Red dots and plain messages show exactly what needs fixing', 'The whole flow is explained in plain English beside it'],
+  'app', 'See the builder') }}
+{{ feature('f-templates', true, 'Templates', 'Start from something that works',
+  'Four ready-made automations for the jobs teams actually repeat: cutting waste, enforcing standards, filing security tickets and gathering incident context.',
+  'templates', 'The template gallery with four templates and a box to describe what you want',
+  ['Cost cleanup, tag compliance, GuardDuty to Jira, and an incident copilot', 'Open any of them, change a variable or a query, and test it', 'Describe your own in the box; with AI it drafts, without AI it searches'],
+  'use-cases', 'See the use cases') }}
+{{ feature('f-test', false, 'Test before anything runs', 'See exactly what would happen',
+  'Press Test. opslens runs the read-only query and shows every row and the exact arguments each action would send, ending with how many changes were made: none.',
+  'test', 'A test run showing rows, each action payload, and 0 changes made',
+  ['Sample data needs no account; live data is read-only', 'Placeholders are filled from real rows, so messages read the way they will', 'The same preview runs in CI to review specs like code'],
+  'preview', 'How previews work') }}
+{{ feature('f-approve', true, 'Safety by design', 'Changes always wait for a person',
+  'A step that deletes or modifies something cannot skip its approval: the switch is locked on. Deploys are tied to the hash of the spec you read.',
+  'approval', 'An action that changes things, with its approval switch locked on',
+  ['Reads are one guarded SELECT; creating a ticket is additive; deleting is gated', 'Edit one character and the deploy hash no longer matches', 'An append-only audit log records every deploy, run and approval'],
+  'safety', 'Read the safety model') }}
+{{ feature('f-explore', false, 'Explore', 'Know what you can look at, and what you can do',
+  'Describe what you want in your own words. Data and actions are matched separately, with columns, parameters and whether each action reads, notifies or changes things.',
+  'explore', 'Search results with matching tables on the left and actions on the right',
+  [stats.tables ~ ' tables and ' ~ stats.pipelines ~ ' actions, built from source and checked against the real plugins', 'Works in your browser on this site, with nothing to install', 'One click carries a table or an action into the builder'],
+  'find', 'Find tables and actions') }}
+{{ feature('f-yaml', true, 'No hidden code', 'It is all just a small file',
+  'Every automation is one short spec you can read, diff, review in a pull request and validate in CI. The pipeline code is generated from it, deterministically, and checked for hand edits.',
+  'yaml', 'An automation shown as YAML',
+  ['Twenty readable lines instead of pipeline code', 'Same spec in, same output out; nobody writes HCL by hand', 'Edit in the builder or the file; they are two views of one thing'],
+  'spec', 'The spec format') }}
+
+<section class="ai" id="ai">
+  <div class="ai-card">
+    <div class="ai-copy">
+      <p class="eyebrow">Optional AI</p>
+      <h3>Describe it. Read it. Then decide.</h3>
+      <p class="lede">If you would rather type a sentence, any model can draft the spec. It never writes code, never sees your cloud data, and goes through the same checks as a template. Everything above works without it.</p>
+      <ul class="ticks">
+        <li>{{ icon('check') }}<span>Anthropic, OpenAI, GLM, OpenRouter, Ollama, LiteLLM, or any OpenAI-compatible server</span></li>
+        <li>{{ icon('check') }}<span>The model sees only your sentence and public catalog metadata; <code>--show-context</code> prints exactly what</span></li>
+        <li>{{ icon('check') }}<span>Validation errors go back to the model; <code>auto_apply</code> is forced off</span></li>
+        <li>{{ icon('check') }}<span>API keys come from environment variables, never a config file</span></li>
+      </ul>
+      <a class="more" href="{{ root }}docs/ai/">About the AI planner {{ icon('arrow') }}</a>
+    </div>
+    <pre class="code term"><code><span class="dim">$</span> opslens generate "every day, find running EC2 instances
+    with no Owner tag, open a Jira ticket for each, and tag
+    them after I approve" --dry-run
+
+<span class="dim"># ...then read what it drafted, in plain English:</span>
+<span class="dim">$</span> opslens explain generated/ec2_tag_enforcement
+- Finds running EC2 instances with no Owner tag, opens a
+  Jira ticket for each, and flags them after approval.
+- Runs every 24h (switched off until you deploy).
+- Each run queries read-only for rows with: instance_id,
+  arn, region, account_id (at most 50 rows).
+- For each row, immediately: Open a ticket per instance
+  (jira.create_issue, notify).
+- Then it asks: "Flag these instances?" Only on approval,
+  for each row: Tag the instance (aws.tag_resources).</code></pre>
   </div>
-</div></section>
+</section>
 
-<section class="alt"><div class="wrap">
-  <h2>Safe by construction.</h2>
-  <p class="sub">The model never writes pipeline code, and nothing destructive runs without a yes.</p>
-  <div class="grid g2">
-    <div class="card big"><div class="ico">🛡</div><h3>Read-only by default</h3><p>Queries pass a guard: one SELECT, tables from the catalog, a timeout and a row cap, on a read-only connection.</p></div>
-    <div class="card big"><div class="ico">✋</div><h3>Approval for changes</h3><p>Pipelines are classed <span class="tag read">read</span> <span class="tag notify">notify</span> or <span class="tag change">change</span>. A change must sit behind an approval step, or the spec is refused.</p></div>
-    <div class="card big"><div class="ico">🔍</div><h3>Reviewed means deployed</h3><p>Deploy needs the spec hash you approved. Edit a generated file by hand and validation catches the drift.</p></div>
-    <div class="card big"><div class="ico">📓</div><h3>Everything on the record</h3><p>An append-only audit log keeps who approved which spec, every deploy, every run and every answer.</p></div>
+<section class="uc" id="use-cases">
+  <div class="head"><p class="eyebrow">Use cases</p><h2>Four jobs, ready to go</h2><p class="lede">Each is a template you can open, test on sample data and change. <a href="{{ root }}docs/use-cases/">Read the walkthroughs</a>.</p></div>
+  <div class="uc-grid">
+    <article class="uc-card"><div class="apps">{{ badge('aws', 'aws', 34) }}{{ badge('jira', 'Ji', 34) }}</div><h3>Clean up unattached EBS volumes</h3><p>Find volumes nobody uses, open a Jira ticket for each, and delete them only after you approve the list.</p><div class="flowline"><span class="tag">Every day</span><span class="tag change">Asks before deleting</span></div><a class="more" href="{{ root }}app/?pack=finops-cleanup/unattached-volumes">Open in the app {{ icon('arrow') }}</a></article>
+    <article class="uc-card"><div class="apps">{{ badge('aws', 'aws', 34) }}{{ badge('jira', 'Ji', 34) }}</div><h3>Enforce owner tags on EC2</h3><p>Ticket every running instance with no Owner tag, then tag it <code>compliance=missing-owner</code> after approval.</p><div class="flowline"><span class="tag">Every day</span><span class="tag change">Asks before tagging</span></div><a class="more" href="{{ root }}app/?pack=governance/tag-enforcement">Open in the app {{ icon('arrow') }}</a></article>
+    <article class="uc-card"><div class="apps">{{ badge('aws', 'aws', 34) }}{{ badge('jira', 'Ji', 34) }}</div><h3>GuardDuty findings to Jira</h3><p>One ticket per new high-severity finding, never filed twice, so serious alerts stop sitting in a console.</p><div class="flowline"><span class="tag">Every hour</span><span class="tag read">Read &amp; notify only</span></div><a class="more" href="{{ root }}app/?pack=security/guardduty-to-jira">Open in the app {{ icon('arrow') }}</a></article>
+    <article class="uc-card"><div class="apps">{{ badge('opsgenie', 'Og', 34) }}{{ badge('gitlab', 'GL', 34) }}{{ badge('jira', 'Ji', 34) }}{{ badge('teams', 'Tm', 34) }}</div><h3>Incident copilot</h3><p>For each open alert, one query joins recent GitLab deploys and open Jira issues, then posts the context to Teams.</p><div class="flowline"><span class="tag">On demand</span><span class="tag read">Read &amp; notify only</span></div><a class="more" href="{{ root }}app/?pack=incident/incident-copilot">Open in the app {{ icon('arrow') }}</a></article>
   </div>
-</div></section>
+</section>
 
-<section><div class="wrap">
-  <h2>Start with a pack.</h2>
-  <p class="sub">Curated automations that work with no AI. Install one, read the HCL, run a preview.</p>
-  <div class="grid g2">
-    <div class="card big"><h3>Unattached EBS cleanup</h3><p>Ticket every volume unattached for 14 days, then delete after approval.</p></div>
-    <div class="card big"><h3>EC2 owner-tag enforcement</h3><p>Ticket instances with no Owner tag, then tag them after approval.</p></div>
-    <div class="card big"><h3>GuardDuty to Jira</h3><p>One ticket per new high-severity finding, never filed twice.</p></div>
-    <div class="card big"><h3>Incident copilot</h3><p>Enrich open Opsgenie alerts with recent GitLab deploys and open Jira issues, and post to Teams. Read-only.</p></div>
+<section class="install" id="install">
+  <div class="head"><p class="eyebrow">Get started</p><h2>Install it, or just try it</h2><p class="lede">The live demo needs nothing. The installer needs one command and no sudo.</p></div>
+  <div class="install-card" data-tabs>
+    <div class="tabs" role="tablist" aria-label="Install method">
+      <button role="tab" aria-selected="true" aria-controls="i-curl" id="t-curl">One command</button>
+      <button role="tab" aria-selected="false" aria-controls="i-pip" id="t-pip">pipx / pip</button>
+      <button role="tab" aria-selected="false" aria-controls="i-docker" id="t-docker">Docker</button>
+      <button role="tab" aria-selected="false" aria-controls="i-src" id="t-src">From source</button>
+    </div>
+    <div role="tabpanel" id="i-curl" aria-labelledby="t-curl">
+      <p>Installs Flowpipe, Steampipe and the five plugins (pinned, checksum-verified) and opslens itself, in your home directory.</p>
+      <pre class="code"><code>curl -fsSL https://opslens.devops-monk.com/install.sh | sh</code></pre>
+      <p class="small">Prefer to read it first? <code>curl -fsSLO https://opslens.devops-monk.com/install.sh</code>, then <code>OPSLENS_DRY_RUN=1 sh install.sh</code> to see every command without running any. Add <code>OPSLENS_EXTRAS="ai web"</code> for the app and AI.</p>
+    </div>
+    <div role="tabpanel" id="i-pip" aria-labelledby="t-pip" hidden>
+      <p>Python 3.11 or newer. Installs opslens only; add Flowpipe and Steampipe for live data.</p>
+      <pre class="code"><code>pipx install "opslens[web,ai] @ https://github.com/devops-monk/opslens/archive/v{{ version }}.tar.gz"</code></pre>
+      <p class="small">Once on PyPI this becomes <code>pipx install "opslens[web,ai]"</code>.</p>
+    </div>
+    <div role="tabpanel" id="i-docker" aria-labelledby="t-docker" hidden>
+      <p>The image has opslens, Flowpipe, Steampipe and the plugins. Multi-arch (amd64, arm64), runs as non-root.</p>
+      <pre class="code"><code>docker run --rm --network none abhaypratap/opslens search "unattached ebs volumes then open a jira ticket"
+docker run --rm -p 8077:8077 abhaypratap/opslens serve --mode demo --host 0.0.0.0 --allow-host localhost</code></pre>
+    </div>
+    <div role="tabpanel" id="i-src" aria-labelledby="t-src" hidden>
+      <pre class="code"><code>git clone https://github.com/devops-monk/opslens &amp;&amp; cd opslens
+python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"
+make test</code></pre>
+    </div>
   </div>
-  <pre class="code" style="max-width:820px;margin:28px auto 0">opslens pack install finops-cleanup/unattached-volumes --var jira_project=INFRA
-opslens validate generated/unattached_volume_cleanup
-opslens preview  generated/unattached_volume_cleanup --source demo</pre>
-  <div class="cta" style="margin-top:22px"><a class="pill ghost" href="docs/packs/">See all packs ›</a></div>
-</div></section>
+  <div class="two">
+    <div class="card">
+      <h3>Try it in two minutes</h3>
+      <p>No cloud account, no credentials, no AI. Everything runs on built-in sample data.</p>
+      <pre class="code"><code>opslens search "unattached ebs volumes, then open a jira ticket"
+opslens pack install finops-cleanup/unattached-volumes
+opslens explain  generated/unattached_volume_cleanup
+opslens preview  generated/unattached_volume_cleanup --source demo
+opslens serve                       # the web app on :8077</code></pre>
+      <a class="more" href="{{ root }}docs/quickstart/">The full quick start {{ icon('arrow') }}</a>
+    </div>
+    <div class="card">
+      <h3>Then connect your accounts</h3>
+      <p>opslens uses Steampipe's and Flowpipe's own credential setup, so it never stores your credentials. When <code>opslens doctor</code> is happy, test on live data, read-only, then deploy.</p>
+      <pre class="code"><code>opslens doctor
+opslens preview generated/unattached_volume_cleanup
+opslens deploy  generated/unattached_volume_cleanup --approve &lt;hash&gt;</code></pre>
+      <a class="more" href="{{ root }}docs/deploy/">Deploy and approve {{ icon('arrow') }}</a>
+    </div>
+  </div>
+</section>
 
-<section class="alt"><div class="wrap narrow" style="text-align:center">
-  <h2>Works with your tools.</h2>
-  <p class="sub">AWS · GitLab · Jira · Opsgenie · Microsoft Teams · Slack · ClickUp · Entra · and any Steampipe plugin you add.</p>
-  <pre class="code" style="text-align:left;max-width:640px;margin:8px auto 24px">curl -fsSL https://opslens.devops-monk.com/install.sh | sh</pre>
-  <div class="cta"><a class="pill primary" href="explore/">Explore the catalogs</a><a class="pill ghost" href="docs/#install">Install guide ›</a></div>
-</div></section>
+<section class="trust" id="trust">
+  <div class="head"><p class="eyebrow">Safety</p><h2>A wrong guess cannot change your accounts</h2></div>
+  <div class="trust-grid">
+    <div><div class="ico">{{ icon('db') }}</div><h3>Reads are guarded</h3><p>One <code>SELECT</code> over catalogued tables, with a timeout and a row cap. Everything else is refused.</p></div>
+    <div><div class="ico">{{ icon('shield') }}</div><h3>Changes wait</h3><p>Deleting or modifying always sits behind an approval. Creating a ticket is additive and bounded.</p></div>
+    <div><div class="ico">{{ icon('check') }}</div><h3>What you read is what runs</h3><p>Deploys require the exact spec hash. Generated files are checked for hand edits.</p></div>
+    <div><div class="ico">{{ icon('lock') }}</div><h3>Secrets stay put</h3><p>Credentials live in Flowpipe and Steampipe. Specs with inline secrets are refused. No telemetry.</p></div>
+  </div>
+  <p class="more-c"><a class="more" href="{{ root }}docs/safety/">Read the safety model {{ icon('arrow') }}</a></p>
+</section>
+
+<section class="final">
+  <h2>See it for yourself</h2>
+  <p>Open a template, press Test, and watch it find the rows and show every payload, with nothing sent.</p>
+  <div class="cta"><a class="btn primary lg" href="{{ root }}app/">Try the live demo</a><a class="btn ghost lg" href="{{ root }}docs/">Read the docs</a></div>
+</section>
 {% endblock %}

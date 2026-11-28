@@ -13,6 +13,7 @@ Protections: a Host-header allow-list (blocks DNS rebinding), a per-process toke
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import time
 from collections import defaultdict, deque
@@ -33,7 +34,7 @@ from ..catalog import tables as tcat
 from ..config import Config
 from ..spec import check, render
 from ..spec.explain import explain
-from ..spec.model import load_spec
+from ..spec.model import Spec, load_spec
 from ..sql import client, guard
 from ..validate.preview import preview
 
@@ -42,7 +43,9 @@ MAX_YAML, MAX_SQL, MAX_ASK = 20_000, 5_000, 1_000
 
 
 class Yaml(BaseModel):
-    yaml: str = Field(max_length=MAX_YAML)
+    """A spec as YAML text (editors, packs) or as a structured object (the visual builder)."""
+    yaml: str | None = Field(None, max_length=MAX_YAML)
+    spec: dict[str, Any] | None = None
     source: str = "demo"
 
 
@@ -56,7 +59,8 @@ class Ask(BaseModel):
 
 
 class Save(BaseModel):
-    yaml: str = Field(max_length=MAX_YAML)
+    yaml: str | None = Field(None, max_length=MAX_YAML)
+    spec: dict[str, Any] | None = None
     force: bool = False
 
 
@@ -132,6 +136,19 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         except (ValueError, TypeError, yaml.YAMLError) as e:  # show the reviewer what is wrong
             raise HTTPException(422, f"not a valid spec: {str(e)[:500]}") from e
 
+    def spec_in(body: Yaml | Save):
+        """The spec from either form of input (YAML text or the builder's object); one place so every endpoint agrees."""
+        if body.spec is not None:
+            if len(json.dumps(body.spec)) > MAX_YAML:
+                raise HTTPException(422, "spec too large")
+            try:
+                return Spec.model_validate(body.spec)
+            except ValueError as e:
+                raise HTTPException(422, f"not a valid spec: {str(e)[:500]}") from e
+        if body.yaml is None:
+            raise HTTPException(422, "send yaml or spec")
+        return parse(body.yaml)
+
     # ---------------------------------------------------------------- meta + catalog
     @app.get("/api/meta")
     def meta() -> dict[str, Any]:
@@ -168,10 +185,52 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         d["usage"] = pcat.usage(p)
         return clean(d)
 
+    TABLE_APPS = (("aws_", "aws"), ("gitlab_", "gitlab"), ("jira_", "jira"), ("opsgenie_", "opsgenie"),
+                  ("microsoft365_", "teams"), ("teams_", "teams"))
+
+    def apps_of(s: Spec) -> list[str]:
+        """The services a spec touches, in the order data -> actions, for the app badges."""
+        found: list[str] = []
+        for t in re.findall(r"\b([a-z0-9]+_[a-z0-9_]+)\b", s.detect.sql.lower()):
+            for pre, app in TABLE_APPS:
+                if t.startswith(pre) and app not in found:
+                    found.append(app)
+        for a in s.actions:
+            m = a.pipeline.split(".")[0]
+            if m not in found:
+                found.append(m)
+        return found
+
+    def pipeline_row(p: pcat.Pipeline) -> dict[str, Any]:
+        return {"pipeline": f"{p.mod}.{p.short}", "mod": p.mod, "title": p.title, "description": pcat.first_sentence(p.description, 140),
+                "effect": p.effect,
+                "params": [{"name": x.name, "type": x.type, "required": not x.optional, "enum": x.enum,
+                            "description": pcat.first_sentence(x.description, 100)}
+                           for x in p.params if not x.type.startswith("connection.") and x.type != "notifier"]}
+
+    CORE_MODS = {"aws", "aws_tags", "aws_thrifty", "gitlab", "jira", "opsgenie", "teams"}
+
+    @app.get("/api/pipelines")
+    def pipelines_search(q: str = "", other: bool = False) -> list[dict[str, Any]]:
+        """The action picker: pipelines matching the text (or a useful starter list), with their params.
+        Limited to the five supported services unless `other` asks for the rest of the library (Slack, ClickUp, ...)."""
+        pc = pcat.load()
+        text = q.strip()[:200] or "create issue send message alert"
+        hits = [pc.get(h["pipeline"]) for h in pc.find(text, k=14, mods=None if other else CORE_MODS)]
+        return clean([pipeline_row(p) for p in hits if p])
+
     # ---------------------------------------------------------------- packs
     @app.get("/api/packs")
     def list_packs() -> list[dict[str, Any]]:
-        return clean(packs.list_packs())
+        rows = []
+        pc = pcat.load()
+        for r in packs.list_packs():
+            s = packs.get(r["pack"])
+            steps = [{"pipeline": a.pipeline, "title": a.title or (pc.get(a.pipeline).title if pc.get(a.pipeline) else a.pipeline),
+                      "effect": (pc.get(a.pipeline).effect if pc.get(a.pipeline) else "?"), "gated": a.gated} for a in s.actions]
+            rows.append({**r, "category": r["pack"].split("/")[0], "description": s.description, "schedule": s.trigger.schedule
+                         if s.trigger.kind == "schedule" else "", "apps": apps_of(s), "steps": steps})
+        return clean(rows)
 
     @app.get("/api/packs/{group}/{name}")
     def get_pack(group: str, name: str) -> dict[str, Any]:
@@ -179,21 +238,41 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
             spec = packs.get(f"{group}/{name}")
         except KeyError as e:
             raise HTTPException(404, str(e.args[0])) from e
-        return {"yaml": spec.to_yaml()}
+        return {"yaml": spec.to_yaml(), "spec": spec.model_dump(mode="json")}
 
     # ---------------------------------------------------------------- spec: validate / explain / preview
+    @app.post("/api/columns")
+    def query_columns(body: Sql) -> dict[str, Any]:
+        """The columns a detect query returns (or why it is refused), so the builder can help before the spec is complete."""
+        try:
+            guard.check_tables(body.sql, tcat.load().names())
+            cols = check.projection(body.sql)
+        except (guard.UnsafeSQL, ValueError) as e:
+            return {"ok": False, "columns": [], "error": str(e)[:300]}
+        if cols is None:
+            return {"ok": False, "columns": [], "error": "List the columns you need instead of SELECT *."}
+        return {"ok": True, "columns": cols, "error": ""}
+
     @app.post("/api/validate")
     def validate(body: Yaml) -> dict[str, Any]:
-        spec = parse(body.yaml)
+        try:
+            spec = spec_in(body)
+        except HTTPException as e:
+            if body.spec is None:
+                raise  # YAML text: a hard error, as before
+            # the builder sends half-finished specs while you edit: report instead of failing
+            return {"ok": False, "name": "", "issues": [{"level": "error", "code": "spec", "message": str(e.detail), "where": ""}],
+                    "hash": None, "explain": [], "gated": [], "columns": [], "spec": None, "yaml": None}
         issues = check.validate(spec)
         ok = not check.errors(issues)
         return {"ok": ok, "name": spec.name, "issues": [asdict(i) for i in issues],
                 "hash": render.spec_hash(spec) if ok else None, "explain": explain(spec),
-                "gated": [a.pipeline for a in spec.gated_actions()]}
+                "gated": [a.pipeline for a in spec.gated_actions()], "columns": check.projection(spec.detect.sql) or [],
+                "spec": spec.model_dump(mode="json"), "yaml": spec.to_yaml()}
 
     @app.post("/api/preview")
     def do_preview(body: Yaml) -> dict[str, Any]:
-        spec = parse(body.yaml)
+        spec = spec_in(body)
         if check.errors(check.validate(spec)):
             raise HTTPException(422, "fix the validation errors first")
         source = "demo" if demo else body.source
@@ -234,11 +313,11 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
             plan = planner.plan(body.requirement, make_provider(cfg.llm), max_attempts=cfg.llm.max_attempts, do_redact=cfg.llm.redact)
         except (LLMError, planner.PlannerError) as e:
             raise HTTPException(422, str(e)) from e
-        return {"yaml": plan.yaml, "attempts": plan.attempts, "model": plan.model, "issues": [asdict(i) for i in plan.issues]}
+        return {"yaml": plan.yaml, "spec": plan.spec.model_dump(mode="json"), "attempts": plan.attempts, "model": plan.model, "issues": [asdict(i) for i in plan.issues]}
 
     @app.post("/api/mods", dependencies=[Depends(local_only)])
     def save(body: Save) -> dict[str, Any]:
-        spec = parse(body.yaml)
+        spec = spec_in(body)
         issues = check.validate(spec)
         if check.errors(issues):
             raise HTTPException(422, "the spec has validation errors; nothing written")
@@ -262,6 +341,11 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
 
         st = server.read_state(d)
         return st if st and server.alive(st["pid"]) else None
+
+    @app.get("/api/mods/{name}", dependencies=[Depends(local_only)])
+    def get_mod(name: str) -> dict[str, Any]:
+        spec = load_spec((mod_dir(name) / "spec.yaml").read_text())
+        return {"spec": spec.model_dump(mode="json"), "yaml": spec.to_yaml(), "hash": render.spec_hash(spec)}
 
     @app.get("/api/mods", dependencies=[Depends(local_only)])
     def mods() -> list[dict[str, Any]]:

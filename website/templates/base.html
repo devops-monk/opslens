@@ -3,37 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% if title %}{{ title }} · {% endif %}opslens</title>
-<meta name="description" content="{{ description or 'Say what you want done. Get a pipeline you can read, review and trust. Plain-English ops requirements to reviewable Flowpipe pipelines, with or without AI.' }}">
-<meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>{% if title %}{{ title }} · {% endif %}opslens{% if not title %}: automate cloud and DevOps tasks you can trust{% endif %}</title>
+<meta name="description" content="{{ description or 'Turn an ops requirement into an automation you can read, test and approve across AWS, GitLab, Jira, Opsgenie and Microsoft Teams. A visual builder, ready-made templates, and optional AI. Open source.' }}">
+<meta name="theme-color" content="#f6f6fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0c16" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="opslens">
+<meta property="og:description" content="Say what you want done. Get an automation you can read, test and approve.">
+<meta property="og:type" content="website">
 <link rel="icon" href="{{ root }}static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{{ root }}static/style.css?v={{ version }}">
+<script src="{{ root }}static/theme.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<nav class="top" aria-label="Main">
-  <div class="wrap">
-    <a class="brand" href="{{ root }}"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><use href="{{ root }}static/icon.svg#i"/></svg>opslens</a>
-    <div class="links">
-      <a href="{{ root }}explore/"{% if page=='explore' %} class="on"{% endif %}>Explore</a>
-      <a href="{{ root }}app/">App</a>
-      <a href="{{ root }}docs/"{% if page=='docs' %} class="on"{% endif %}>Docs</a>
-      <a href="{{ root }}docs/safety/">Safety</a>
-      <a href="https://github.com/devops-monk/opslens">GitHub</a>
-      <a class="pill primary" href="{{ root }}docs/#install">Install</a>
-    </div>
+<header class="top">
+  <div class="bar">
+    <a class="brand" href="{{ root }}"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><use href="{{ root }}static/icon.svg#i"/></svg><span>opslens</span></a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Menu">{{ icon('menu') }}</button>
+    <nav id="nav" aria-label="Main">
+      <a href="{{ root }}#features">Features</a>
+      <a href="{{ root }}#use-cases">Use cases</a>
+      <a href="{{ root }}#install">Install</a>
+      <a href="{{ root }}explore/"{% if page=='explore' %} aria-current="page"{% endif %}>Explore</a>
+      <a href="{{ root }}docs/"{% if page=='docs' %} aria-current="page"{% endif %}>Docs</a>
+      <a href="{{ repo }}" class="gh">{{ icon('star') }}<span>GitHub</span></a>
+      <button class="theme-btn" type="button" aria-label="Switch light or dark">{{ icon('moon') }}</button>
+      <a class="btn primary sm" href="{{ root }}app/">Try the app</a>
+    </nav>
   </div>
-</nav>
+</header>
 <main id="main">
 {% block body %}{% endblock %}
 </main>
 <footer>
-  <div class="wrap">
-    <div>opslens {{ version }} · Apache-2.0 · Built on <a href="https://flowpipe.io">Flowpipe</a> and <a href="https://steampipe.io">Steampipe</a> (AGPL-3.0, run as separate programs).</div>
-    <div><a href="https://github.com/devops-monk/opslens">Source</a> · <a href="{{ root }}docs/safety/">Safety model</a> · <a href="https://spendlens.devops-monk.com">spendlens</a></div>
+  <div class="foot">
+    <div class="foot-brand">
+      <a class="brand" href="{{ root }}"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><use href="{{ root }}static/icon.svg#i"/></svg><span>opslens</span></a>
+      <p>Say what you want done. Get an automation you can read, test and approve.</p>
+      <p class="small">Apache-2.0 · v{{ version }}</p>
+    </div>
+    <div><h4>Product</h4><a href="{{ root }}#features">Features</a><a href="{{ root }}#use-cases">Use cases</a><a href="{{ root }}app/">Live demo</a><a href="{{ root }}explore/">Explore catalogs</a></div>
+    <div><h4>Docs</h4><a href="{{ root }}docs/install/">Install</a><a href="{{ root }}docs/quickstart/">Quick start</a><a href="{{ root }}docs/spec/">Spec format</a><a href="{{ root }}docs/cli/">CLI reference</a></div>
+    <div><h4>Trust</h4><a href="{{ root }}docs/safety/">Safety model</a><a href="{{ root }}docs/data-security/">Data and privacy</a><a href="{{ root }}docs/architecture/">How it works</a></div>
+    <div><h4>Project</h4><a href="{{ repo }}">GitHub</a><a href="{{ root }}docs/changelog/">Changelog</a><a href="{{ repo }}/issues">Issues</a><a href="https://spendlens.devops-monk.com">spendlens</a></div>
   </div>
+  <p class="legal">Built on <a href="https://flowpipe.io">Flowpipe</a> and <a href="https://steampipe.io">Steampipe</a> (AGPL-3.0), which run as separate, unmodified programs. AWS, GitLab, Jira, Opsgenie and Microsoft Teams are trademarks of their owners; opslens is not affiliated with them.</p>
 </footer>
+<script src="{{ root }}static/site.js?v={{ version }}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
