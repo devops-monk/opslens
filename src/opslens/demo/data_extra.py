@@ -132,5 +132,9 @@ def extend(tables: dict[str, list[dict[str, Any]]]) -> None:
     tables["gitlab_project_deployment"].append(  # recent, so "last 24 hours" templates have something to find
         {"id": "504", "project_id": "42", "status": "failed", "environment_name": "production", "ref": "release-2026-11", "sha": "0000000000000000000000000000000000000004",
          "created_at": _ago(hours=3), "updated_at": _ago(hours=3)})
+    for i, row in enumerate(tables["aws_ec2_instance"], 1):  # IP addresses for the "find my IPs" walkthrough
+        stopped = row["instance_state"] != "running"
+        row["public_ip_address"] = None if stopped else f"203.0.113.{10 + i}"
+        row["private_ip_address"] = f"10.0.{i}.{20 + i}"
     for row, (typ, upd, due, cat) in zip(tables["jira_issue"], JIRA_EXTRA, strict=False):
         row.update({"type": typ, "updated": upd, "duedate": due, "status_category": cat})

@@ -68,18 +68,20 @@ ICONS = {
     "moon": '<path d="M20 14.5A8.5 8.5 0 019.5 4 8.5 8.5 0 1020 14.5z"/>',
     "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
     "arrow": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    "plug": '<path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/>',
 }
 ICON_SVG = {k: Markup(f'<svg {_G} aria-hidden="true">{v}</svg>') for k, v in ICONS.items()}
 
 # ---------------------------------------------------------------- docs structure
 NAV = [
     ("Get started", [("", "Introduction"), ("install", "Install"), ("quickstart", "Quick start"),
-                     ("ways-to-run", "Ways to run"), ("hosting", "Host it for your team"), ("configuration", "Configuration")]),
+                     ("ways-to-run", "Ways to run"), ("hosting", "Host it for your team"), ("configuration", "Configuration"),
+                     ("integrations", "Connect your services")]),
     ("Build automations", [("app", "The web app"), ("use-cases", "Use cases"), ("packs", "Templates"),
                            ("spec", "The spec format"), ("find", "Find tables and actions"), ("preview", "Preview and test"),
                            ("deploy", "Deploy, approve, audit"), ("ai", "AI planner")]),
     ("Trust and help", [("safety", "Safety model"), ("data-security", "Data and privacy"), ("troubleshooting", "Troubleshooting")]),
-    ("Reference", [("cli", "CLI reference"), ("catalog", "The catalogs"), ("architecture", "How it works"),
+    ("Reference", [("cli", "CLI reference"), ("actions", "Actions reference"), ("catalog", "The catalogs"), ("architecture", "How it works"),
                    ("development", "Development"), ("changelog", "Changelog")]),
 ]
 DOC_INFO = {
@@ -88,6 +90,8 @@ DOC_INFO = {
     "quickstart": ("play", "Five minutes on sample data: find, install a template, read it, preview it."),
     "ways-to-run": ("box", "Installer, hosted demo, local app, CLI, Docker and CI."),
     "hosting": ("users", "Run the full app for a team behind HTTPS, with sign-in and an audit trail."),
+    "integrations": ("plug", "Teams, Slack, Jira, GitLab, Opsgenie and AWS: tokens, variables, and how to test each."),
+    "actions": ("bolt", "Every Jira, Teams, Slack, Opsgenie, GitLab and AWS action, with its parameters."),
     "configuration": ("sliders", "Every setting, where it comes from, and its environment variable."),
     "app": ("layout", "The visual builder: templates, the flow, testing, YAML, and the demo."),
     "use-cases": ("grid", "Four real automations end to end, and how to build your own."),
@@ -107,6 +111,25 @@ DOC_INFO = {
     "changelog": ("clock", "What changed in each release."),
 }
 REPO_DOCS = {"safety": "safety.md"}
+
+
+sys.path.insert(0, str(Path(__file__).parent))
+import diagrams  # hand-built SVG for the Architecture page
+
+PAGES = {  # top-level pages in the header: slug -> (icon, description)
+    "commands": ("terminal", "Every useful CLI command, grouped by what you want to do."),
+    "architecture": ("flow", "C4 context, container and component diagrams and sequence diagrams of how opslens works."),
+}
+
+
+def render_page(slug: str) -> dict:
+    html, h1, toc, lead = render_md((SITE / "content" / "pages" / f"{slug}.md").read_text(), "../", slug)
+    for name, svg in diagrams.all_diagrams().items():
+        html = html.replace(f"<p>[[diagram:{name}]]</p>", str(svg))
+    if "[[diagram:" in html:
+        raise SystemExit(f"unknown diagram in {slug}.md")
+    return {"html": Markup(html), "h1": h1, "toc": Markup(toc), "lead": Markup(lead), "icon": ICON_SVG[PAGES[slug][0]],
+            "edit": f"{REPO_URL}/edit/main/website/content/pages/{slug}.md"}
 
 
 def packs_md() -> str:
@@ -173,6 +196,31 @@ def cli_md() -> str:
             out.append("")
 
     walk(root, "opslens")
+    return "\n".join(out)
+
+
+def actions_md() -> str:
+    pc = pcat.load()
+    order = [("jira", "Jira", "A `connection \"jira\"` (base URL, user, API token)"),
+             ("teams", "Microsoft Teams", "A `credential \"teams\"` (a Microsoft Graph access token)"),
+             ("slack", "Slack", "A `connection \"slack\"` (a token), or just a webhook URL for `post_message_to_webhook`"),
+             ("opsgenie", "Opsgenie", "A `connection \"opsgenie\"` (alert and incident API keys)"),
+             ("gitlab", "GitLab", "A `connection \"gitlab\"` (a personal access token)"),
+             ("aws", "AWS", "A `connection \"aws\"` (profile or keys) **and a running Docker daemon**: these pipelines run the AWS CLI in a container")]
+    mark = {"read": "read", "notify": "notify", "change": "**change**"}
+    out = ["# Actions reference",
+           "Every action opslens can put in an automation for the core services, with its parameters. A `*` marks a required parameter. "
+           "**read** only fetches, **notify** adds a message or a record, **change** modifies or deletes something and therefore always "
+           "waits for [approval](../deploy/). For one action's types and descriptions run `opslens describe pipeline <name>`; "
+           "how to connect each service is in [Connect your services](../integrations/).", ""]
+    for mod, label, needs in order:
+        items = sorted((n, p) for n, p in pc.pipelines.items() if n.split(".")[0] == mod and ".pipeline.test_" not in n)
+        out += [f"## {label}", "", f"{len(items)} actions. Needs: {needs}.", "", "| Action | Effect | Required | Optional |", "|---|---|---|---|"]
+        for n, p in items:
+            req = ", ".join(f"`{q.name}`" for q in p.params if not q.optional and q.name not in ("conn", "cred"))
+            opt = ", ".join(f"`{q.name}`" for q in p.params if q.optional and q.name not in ("conn", "cred"))
+            out.append(f"| `{n.replace('.pipeline.', '.')}` | {mark.get(p.effect, p.effect)} | {req or '-'} | {opt or '-'} |")
+        out.append("")
     return "\n".join(out)
 
 
@@ -287,7 +335,7 @@ def doc_sources() -> dict[str, str]:
         src["" if f.stem == "index" else f.stem] = f.read_text()
     for slug, fname in REPO_DOCS.items():
         src[slug] = (ROOT / "docs" / fname).read_text()
-    src["packs"], src["cli"], src["catalog"] = packs_md(), cli_md(), catalog_md()
+    src["packs"], src["cli"], src["catalog"], src["actions"] = packs_md(), cli_md(), catalog_md(), actions_md()
     src["changelog"] = (ROOT / "CHANGELOG.md").read_text()
     return src
 
@@ -319,6 +367,9 @@ def build() -> list[Path]:
     write("", "index.html")
     write("explore", "explore.html", title="Explore", page="explore",
           description=f"Search {stats['tables']} Steampipe tables and {stats['pipelines']} Flowpipe pipelines in your browser.")
+
+    for slug, (_, desc) in PAGES.items():
+        write(slug, "page.html", title=slug.capitalize(), page=slug, description=desc, pg=render_page(slug))
 
     sources = doc_sources()
     flat = [(s, t) for _, items in NAV for s, t in items]

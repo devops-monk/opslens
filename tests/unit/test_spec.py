@@ -243,3 +243,11 @@ def test_every_shipped_pack_has_a_category_and_description():
         s = packs.get(row["pack"])
         assert s.description and s.title, row["pack"]
         assert row["pack"].split("/")[0] in {"finops-cleanup", "governance", "security", "incident", "chatops", "engineering"}, row["pack"]
+
+
+def test_demo_ec2_instances_have_ip_addresses():
+    from opslens.demo import data
+
+    rows = data.TABLES["aws_ec2_instance"]
+    assert all(r["private_ip_address"] for r in rows)
+    assert any(r["public_ip_address"] for r in rows if r["instance_state"] == "running")

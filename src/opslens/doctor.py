@@ -30,6 +30,20 @@ def _version(binary: str, *args: str) -> str | None:
     return (r.stdout or r.stderr).strip().splitlines()[0] if (r.stdout or r.stderr).strip() else "installed"
 
 
+def _docker_check() -> Check:
+    """AWS action pipelines run the AWS CLI in a container, so Flowpipe needs a reachable Docker daemon for them."""
+    why = "AWS action pipelines (tag, stop, delete, ...) run in containers; Jira, Teams, GitLab, Opsgenie and Slack do not need Docker"
+    if shutil.which("docker") is None:
+        return Check("docker", "warn", f"not installed. {why}", "https://docs.docker.com/engine/install/")
+    try:
+        r = subprocess.run(["docker", "info", "--format", "{{.ServerVersion}}"], check=False, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return Check("docker", "warn", f"could not run docker. {why}", "start Docker")
+    if r.returncode != 0 or not r.stdout.strip():
+        return Check("docker", "warn", f"the Docker daemon is not reachable. {why}", "start Docker (or add yourself to the docker group)")
+    return Check("docker", "ok", f"daemon {r.stdout.strip()} (needed by AWS action pipelines)")
+
+
 def run_checks(cfg: Config, *, offline: bool = False) -> list[Check]:
     out = [Check("opslens", "ok", __version__)]
     tc, pc = tables.load(), pipelines.load()
@@ -45,6 +59,8 @@ def run_checks(cfg: Config, *, offline: bool = False) -> list[Check]:
         want = f"v{versions.FLOWPIPE_VERSION}"
         out.append(Check("flowpipe", "ok" if want in fp else "warn",
                          f"{fp}" + ("" if want in fp else f" (opslens is tested with {want})")))
+    if not offline:
+        out.append(_docker_check())
     sp = _version("steampipe", "--version")
     if sp is None:
         out.append(Check("steampipe", "warn", "not installed (needed for live queries; demo data works without it)",

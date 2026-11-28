@@ -59,6 +59,13 @@ Start with `opslens doctor`. It checks opslens, the catalogs, Flowpipe, Steampip
 
 **The draft fails validation three times.** The message shows the last errors. Make the request more specific (name the service and the condition), or use a stronger model, or start from a template.
 
+## Connections
+
+- **`401 Unauthorized` from a Teams action.** The access token is wrong or expired (Microsoft tokens last about an hour). See [Connect your services](../integrations/#microsoft-teams).
+- **`invalid_auth` or `not_authed` from Slack.** The `SLACK_TOKEN` is wrong or missing.
+- **`Unable to initialize the Docker client` on an AWS action.** AWS actions run in a container; start Docker where Flowpipe runs (`opslens doctor` shows it). The Docker image of opslens has no daemon.
+- **Queries work but actions fail (or the reverse).** Steampipe and Flowpipe have separate credentials. Jira even uses `JIRA_TOKEN` for one and `JIRA_API_TOKEN` for the other.
+
 ## Still stuck
 
 Run `opslens doctor` and `opslens --version`, then [open an issue](https://github.com/devops-monk/opslens/issues) with the output and what you expected.

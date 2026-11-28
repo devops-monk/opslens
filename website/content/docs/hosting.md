@@ -43,6 +43,10 @@ opslens never stores credentials. As elsewhere, they live in Steampipe (to read)
 - **Environment variables** that a plugin reads, in `credentials.env` (for AWS, the standard `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, or a role if the host has one).
 - **Connection files**: put Steampipe `.spc` files in `./config/steampipe` and Flowpipe `.fpc` files in `./config/flowpipe`, then uncomment the two volume lines in `docker-compose.yml`.
 
+Each service's tokens, variable names and checks are in [Connect your services](../integrations/).
+
+> **AWS actions do not run in this image.** The AWS Flowpipe mod runs the AWS CLI in a container, and the image has no Docker daemon. Reading AWS, previews and every Teams, Slack, Jira, GitLab and Opsgenie action work; the 10 templates with `aws.*` actions (stop, delete, tag, close a security group) need opslens on a host with Docker. `opslens doctor` reports this.
+
 Give Steampipe read-only credentials where you can. After the first start, run `docker compose exec opslens opslens doctor` to see what is connected.
 
 ## Sign-in options

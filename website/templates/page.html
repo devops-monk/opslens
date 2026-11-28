@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="wrap pagewide">
+  <article class="prose" id="top">
+    <header class="doc-head">
+      <div class="doc-icon" aria-hidden="true">{{ pg.icon }}</div>
+      <h1>{{ pg.h1 }}</h1>
+      {% if pg.lead %}<p class="lead">{{ pg.lead }}</p>{% endif %}
+    </header>
+    {{ pg.html }}
+    <p class="doc-edit"><a href="{{ pg.edit }}">Edit this page on GitHub ›</a></p>
+  </article>
+  {% if pg.toc %}<aside class="toc" aria-label="On this page"><h4>On this page</h4>{{ pg.toc }}<a class="toc-top" href="#top">Back to top ↑</a></aside>{% endif %}
+</div>
+{% endblock %}

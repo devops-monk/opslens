@@ -1,3 +1,3 @@
 """opslens: plain-English ops requirements to reviewable Flowpipe pipelines."""
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"

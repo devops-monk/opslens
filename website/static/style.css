@@ -206,3 +206,24 @@ table.t{width:100%;border-collapse:collapse;font-size:13px} table.t th{text-alig
 .two>*,.ai-card>*,.feature>*,.uc-card,.steps4 li{min-width:0}
 .prose pre:not(.code){background:var(--code);color:var(--code-fg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow:auto;font:13px/1.6 var(--mono);margin:14px 0}
 .prose pre:not(.code) code{background:none;border:0;padding:0;font:inherit;color:inherit}
+
+/* ---------- commands + architecture pages, diagrams ---------- */
+.pagewide{max-width:1240px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:0 24px;align-items:start;padding:0 22px}
+.pagewide .prose{max-width:none;padding:40px 0 70px}
+@media(max-width:1100px){.pagewide{grid-template-columns:minmax(0,1fr)} .pagewide .toc{display:none}}
+@media(max-width:1180px){nav#nav>a:not(.btn){padding:7px 9px;font-size:14.5px} nav#nav{gap:2px} .top .bar{gap:12px}}
+figure.diagram{margin:22px 0;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);overflow-x:auto}
+figure.diagram svg{display:block;width:100%;min-width:640px;height:auto;max-height:none}
+figure.diagram figcaption{padding:9px 16px;font-size:13.5px;color:var(--fg3);border-top:1px solid var(--line);background:var(--surface2);border-radius:0 0 14px 14px;position:sticky;left:0}
+.dg-box{stroke-width:1.5}
+.dg-person{fill:var(--accent-soft);stroke:var(--accent)} .dg-system{fill:var(--accent);stroke:var(--accent2)}
+.dg-external{fill:var(--surface2);stroke:var(--line2)} .dg-container{fill:var(--blue-soft);stroke:var(--blue)}
+.dg-component{fill:var(--surface);stroke:var(--accent)} .dg-store{fill:var(--orange-soft);stroke:var(--orange)}
+.dg-group{fill:none;stroke:var(--line2);stroke-width:1.5;stroke-dasharray:6 5} .dg-glabel{fill:var(--fg3);font:700 12.5px var(--font);letter-spacing:.04em}
+.dg-title{fill:var(--fg);font:700 14px var(--font)}
+.dg-sub{fill:var(--fg2);font:12.5px var(--font)} .dg-tech{fill:var(--fg3);font:11.5px var(--font)}
+.dg-on{fill:#fff!important}
+.dg-arrow{stroke:var(--fg3);stroke-width:1.6;fill:none} .dg-dash{stroke-dasharray:6 5} .dg-head{fill:var(--fg3)}
+.dg-lbl{fill:var(--fg2);font:12px var(--font)} .dg-halo{fill:none;stroke:var(--surface);stroke-width:5;stroke-linejoin:round;font:12px var(--font);paint-order:stroke}
+.dg-life{stroke:var(--line2);stroke-width:1.4;stroke-dasharray:3 5}
+.dg-gate{fill:var(--orange-soft);stroke:var(--orange);stroke-width:1.2} .dg-gtext{fill:var(--orange);font:700 13px var(--font)}

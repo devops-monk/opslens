@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 (2026-11-28)
+
+- Docs: a step-by-step AI setup guide with a worked "find the IP addresses" example, a **Connect your services** guide (Teams, Slack,
+  Jira, GitLab, Opsgenie, AWS: tokens, variables, how to test), and a generated **Actions reference**.
+- Site: a **Commands** page and an **Architecture** page (C4 context, container and component diagrams, and sequence diagrams) in the header.
+- `opslens doctor` now checks for Docker, which AWS action pipelines need.
+- Sample data: demo EC2 instances now have public and private IP addresses.
+
 ## 0.3.0 (2026-11-28)
 
 - **Team mode** (`opslens serve --mode team`): host the full web app for a team. It refuses to start without sign-in and a
