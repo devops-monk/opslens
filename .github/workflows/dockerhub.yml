@@ -1,4 +1,4 @@
-# Manually publish an EXISTING release tag to Docker Hub (multi-arch):  Actions > dockerhub > Run workflow > tag: v0.3.1
+# Manually publish an EXISTING release tag to Docker Hub (multi-arch):  Actions > dockerhub > Run workflow > tag: v0.3.2
 # Needs the repo secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN. New tags are published by release.yml automatically.
 name: dockerhub
 
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish, e.g. v0.3.1"
+        description: "Release tag to publish, e.g. v0.3.2"
         required: true
 
 permissions:

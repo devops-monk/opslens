@@ -37,7 +37,7 @@ Set these as environment variables in front of the command.
 | `OPSLENS_SKIP_ENGINES=1` | Install only opslens; you manage Flowpipe and Steampipe yourself |
 | `OPSLENS_SKIP_PLUGINS=1` | Install the engines but no plugins |
 | `OPSLENS_PLUGINS="aws jira"` | Only these plugins (default: all five) |
-| `OPSLENS_REF=v0.3.1` | Which release to install (default: the one the script shipped with) |
+| `OPSLENS_REF=v0.3.2` | Which release to install (default: the one the script shipped with) |
 | `OPSLENS_BIN_DIR=~/.local/bin` | Where binaries go |
 | `OPSLENS_PACKAGE=<path or URL>` | Install opslens from this wheel or sdist instead of GitHub |
 | `OPSLENS_DRY_RUN=1` | Print, don't run |
@@ -51,7 +51,7 @@ curl -fsSL https://opslens.devops-monk.com/install.sh | OPSLENS_EXTRAS="ai web" 
 **pip or pipx** (Python 3.11 or newer). This installs opslens only; add Flowpipe and Steampipe yourself if you want live data and deploys.
 
 ```bash
-pipx install "opslens[web,ai] @ https://github.com/devops-monk/opslens/archive/v0.3.1.tar.gz"
+pipx install "opslens[web,ai] @ https://github.com/devops-monk/opslens/archive/v0.3.2.tar.gz"
 # once published to PyPI:  pipx install "opslens[web,ai]"
 ```
 

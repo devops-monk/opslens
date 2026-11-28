@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 (2026-11-28)
 
-- Docs: worked example for finding this machine's public IP with the ipstack Flowpipe mod; ipstack added to the integrations guide and actions reference.
+- `opslens query` given plain words (not SQL) now says so and suggests `opslens search`.
+- `opslens doctor` prints a link to the guide for connecting Jira, Teams, Slack, GitLab, Opsgenie and AWS.
+- Docs: **Explained simply** (a story, a picture and a step-by-step example), a command map and glossary on the Commands page, a
+  step-by-step search guide, a five-step recipe for connecting each service, and a worked ipstack example for finding a public IP.
 
 ## 0.3.1 (2026-11-28)
 
