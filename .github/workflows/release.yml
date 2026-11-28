@@ -1,7 +1,7 @@
 # Release: push a tag vX.Y.Z that matches pyproject's version.
 #   build   -> wheel + sdist, checked, installed into a clean venv and run
 #   image   -> multi-arch image on ghcr.io/<owner>/opslens (X.Y.Z and latest), and on Docker Hub (abhaypratap/opslens)
-#              when the repo variable DOCKERHUB_USERNAME and secret DOCKERHUB_TOKEN (an access token) are set
+#              when the repo secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token) are set
 #   pypi    -> PyPI via Trusted Publishing (no token stored). Runs only when the repo variable PUBLISH_PYPI is "true"
 #              and a trusted publisher is configured on pypi.org for this workflow and the `pypi` environment.
 #   release -> a GitHub release with the artifacts and the matching CHANGELOG section
@@ -51,7 +51,7 @@ jobs:
       contents: read
       packages: write
     env:
-      HUB_USER: ${{ vars.DOCKERHUB_USERNAME }}
+      HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -65,7 +65,7 @@ jobs:
         if: env.HUB_USER != ''
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - id: meta
         run: |
