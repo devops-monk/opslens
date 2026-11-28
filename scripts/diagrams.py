@@ -244,6 +244,54 @@ def seq_team() -> Markup:
     return s.render()
 
 
+def simple_flow() -> Markup:
+    s = Svg(940, 250, "simple", "opslens in four steps",
+            "Four boxes in a row: 1 Look at what you have, 2 You read the plan, 3 Tell people, 4 Ask a grown-up before anything is changed.")
+    xs = [20, 250, 480, 710]
+    items = [("1. LOOK", "opslens asks your cloud:\n\"which disks are not used?\"\n(read only, changes nothing)", "container"),
+             ("2. YOU READ", "You see the exact plan\nand a test run.\nNothing has happened yet.", "person"),
+             ("3. TELL", "opslens makes a ticket or\nsends a message\nso people know.", "container"),
+             ("4. ASK, THEN FIX", "Before it deletes anything,\nit stops and waits for\na person to say yes.", "store")]
+    for x, (t, sub, kind) in zip(xs, items, strict=True):
+        s.box(x, 50, 210, 130, t, sub, kind)
+    for x in xs[:-1]:
+        s.arrow(x + 210, 115, x + 230, 115, "")
+    s.parts.append('<text x="470" y="30" class="dg-glabel" text-anchor="middle">YOU STAY IN CHARGE AT EVERY STEP</text>')
+    s.parts.append('<text x="470" y="225" class="dg-sub" text-anchor="middle">No AI is needed for any of this. An AI can only help you write step 1 in plain words.</text>')
+    return s.render()
+
+
+def command_map() -> Markup:
+    s = Svg(940, 430, "cmdmap", "Every opslens command, in the order you would use it",
+            "Six stages left to right: get ready, find, ask, plan, test, go live. Each lists its commands with a one-line meaning. "
+            "A strip below shows serve, the web app.")
+    stages = [
+        ("1 GET READY", "Is everything set up?", [("doctor", "is everything installed?"), ("init", "make a settings file"),
+                                                  ("params", "list every setting"), ("config", "settings in use")]),
+        ("2 FIND", "What can I look at,\nand what can I do?", [("search", "find by plain words"), ("find", "narrow the search"),
+                                                              ("describe", "see one in detail"), ("catalog", "what is in the lists")]),
+        ("3 ASK", "Look at my cloud.\nRead only.", [("query", "ask a question (SQL)")]),
+        ("4 PLAN", "Get a plan to\nlook, tell and fix.", [("pack", "ready-made plans"), ("generate", "AI writes a plan"),
+                                                          ("render", "turn a plan into files"), ("explain", "plan in plain words")]),
+        ("5 TEST", "Check it. Pretend-run\nit. Nothing changes.", [("validate", "is it valid and safe?"), ("preview", "pretend run, no changes")]),
+        ("6 GO LIVE", "Start it. A person\nsays yes to changes.", [("deploy", "start it (needs the hash)"), ("run", "run it right now"),
+                                                                    ("approve", "say yes or skip"), ("runs", "history of what ran"),
+                                                                    ("undeploy", "stop it")]),
+    ]
+    w, gap, x0 = 145, 10, 10
+    for i, (title, sub, cmds) in enumerate(stages):
+        x = x0 + i * (w + gap)
+        s.box(x, 14, w, 330, title, sub, "container" if i < 5 else "store")
+        for j, (cmd, meaning) in enumerate(cmds):
+            y = 108 + j * 46
+            s.parts.append(f'<text x="{x + 12}" y="{y}" class="dg-cmd">{escape(cmd)}</text>')
+            s.parts.append(f'<text x="{x + 12}" y="{y + 15}" class="dg-cm">{escape(meaning)}</text>')
+        if i < 5:
+            s.arrow(x + w, 80, x + w + gap, 80, "")
+    s.box(10, 362, 920, 56, "WEB APP:  serve", "the same things with buttons instead of typing", "person")
+    return s.render()
+
+
 def all_diagrams() -> dict[str, Markup]:
-    return {"c4_context": c4_context(), "c4_containers": c4_containers(), "c4_components": c4_components(),
+    return {"command_map": command_map(), "simple_flow": simple_flow(), "c4_context": c4_context(), "c4_containers": c4_containers(), "c4_components": c4_components(),
             "seq_lifecycle": seq_lifecycle(), "seq_ai": seq_ai(), "seq_team": seq_team()}

@@ -2,6 +2,38 @@
 
 What you can really do from the terminal. Every command here exists in the installed version (the full list with every option is the [CLI reference](../docs/cli/)). Add `--source demo` to `query` and `preview` to try anything on sample data, with no cloud account.
 
+## The map
+
+Lots of commands, but they follow one journey. Read the picture left to right: you **get ready**, **find** what exists, **ask** a question, get a **plan**, **test** it, then **go live**.
+
+[[diagram:command_map]]
+
+## What the strange words mean
+
+| Word | Plain meaning | Example |
+|---|---|---|
+| **doctor** | A health check: is everything installed? Tells you the fix for anything missing | `opslens doctor` |
+| **params** | Short for parameters. Lists every **setting** opslens has, its current value, and where the value came from | `opslens params` |
+| **config** | Shows the settings opslens is using right now, as a file | `opslens config` |
+| **search / find** | Look things up using plain words, like a search box | `opslens search "unused disks"` |
+| **describe** | Show everything about one table or action | `opslens describe table aws_ebs_volume` |
+| **query** | Ask a question of your data. It takes SQL (a small question language), not plain words | `opslens query "select ..."` |
+| **pack / template** | A ready-made plan someone already wrote | `opslens pack list` |
+| **spec** | The plan itself, a short file you can read | `spec.yaml` |
+| **generate** | Let an AI write the plan from a sentence (optional) | `opslens generate "..."` |
+| **render** | Turn the plan into the files that Flowpipe runs | `opslens render my-spec.yaml` |
+| **explain** | Read the plan back in plain words | `opslens explain <folder>` |
+| **validate** | Check the plan is correct and safe | `opslens validate <folder>` |
+| **preview** | A **pretend run**: shows what would happen and does none of it | `opslens preview <folder>` |
+| **deploy** | **Start** the plan so it can run. You must give the plan's fingerprint (hash), so you only start what you read | `opslens deploy <folder> --approve <hash>` |
+| **run** | Run it **right now**, once | `opslens run <folder>` |
+| **approve** | Answer yes or skip when a run is **waiting** before a change | `opslens approve <folder> <id>` |
+| **runs** | The history: what was deployed, run and approved | `opslens runs <folder>` |
+| **undeploy** | **Stop** it | `opslens undeploy <folder>` |
+| **serve** | Open the **web app**, so you can click instead of type | `opslens serve` |
+
+New to all this? Read [Explained simply](../docs/simple/) first; it walks the same journey with one example.
+
 ## Set up and check
 
 ```bash

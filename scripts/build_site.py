@@ -74,7 +74,7 @@ ICON_SVG = {k: Markup(f'<svg {_G} aria-hidden="true">{v}</svg>') for k, v in ICO
 
 # ---------------------------------------------------------------- docs structure
 NAV = [
-    ("Get started", [("", "Introduction"), ("install", "Install"), ("quickstart", "Quick start"),
+    ("Get started", [("", "Introduction"), ("simple", "Explained simply"), ("install", "Install"), ("quickstart", "Quick start"),
                      ("ways-to-run", "Ways to run"), ("hosting", "Host it for your team"), ("configuration", "Configuration"),
                      ("integrations", "Connect your services")]),
     ("Build automations", [("app", "The web app"), ("use-cases", "Use cases"), ("packs", "Templates"),
@@ -86,6 +86,7 @@ NAV = [
 ]
 DOC_INFO = {
     "": ("book", "What opslens does, how it works in one paragraph, and the principles behind it."),
+    "simple": ("sparkle", "What opslens is, in plain words, with one example you can follow step by step."),
     "install": ("download", "One command for macOS and Linux, or pip, Docker and source."),
     "quickstart": ("play", "Five minutes on sample data: find, install a template, read it, preview it."),
     "ways-to-run": ("box", "Installer, hosted demo, local app, CLI, Docker and CI."),
@@ -384,6 +385,8 @@ def build() -> list[Path]:
     for i, (slug, title) in enumerate(flat):
         root = "../../" if slug else "../"
         html, h1, toc, lead = render_md(sources[slug], root, slug)
+        for dname, svg in diagrams.all_diagrams().items():
+            html = html.replace(f"<p>[[diagram:{dname}]]</p>", str(svg))
         edit = {"cli": None, "packs": None, "catalog": None, "changelog": f"{REPO_URL}/edit/main/CHANGELOG.md"}.get(
             slug, f"{REPO_URL}/edit/main/docs/{REPO_DOCS[slug]}" if slug in REPO_DOCS else
             f"{REPO_URL}/edit/main/website/content/docs/{slug or 'index'}.md")
