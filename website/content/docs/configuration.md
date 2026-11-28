@@ -29,6 +29,8 @@ opslens query "select 1" --set steampipe.port=9194
 | `steampipe.database` / `user` | `steampipe` | `OPSLENS__STEAMPIPE__DATABASE` / `__USER` | Connection details |
 | `steampipe.password` / `dsn` | none | `OPSLENS__STEAMPIPE__PASSWORD` / `__DSN` | Password, or a full connection string |
 | `steampipe.statement_timeout_s` | `60` | `OPSLENS__STEAMPIPE__STATEMENT_TIMEOUT_S` | Per-query timeout, enforced by the database |
+| `steampipe.auto_start` | `true` | `OPSLENS__STEAMPIPE__AUTO_START` | Start the data service when a live query needs it and it is not running |
+| `connections.<service>.<field>` | none | `OPSLENS__CONNECTIONS__JIRA__URL` | Non-secret connection details (URLs, user names). Secrets are refused here; use `opslens connect` ([guide](../integrations/)) |
 | `steampipe.max_rows` | `1000` | `OPSLENS__STEAMPIPE__MAX_ROWS` | Row cap for queries (results are flagged when truncated) |
 | `flowpipe.url` | `http://localhost:7103` | `OPSLENS__FLOWPIPE__URL` | Flowpipe's REST API |
 | `flowpipe.binary` | `flowpipe` | `OPSLENS__FLOWPIPE__BINARY` | The Flowpipe executable |

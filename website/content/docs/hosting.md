@@ -38,9 +38,10 @@ Everything people save, and the audit log, live on the `opslens-data` volume. Ba
 
 ## Connect your accounts
 
-opslens never stores credentials. As elsewhere, they live in Steampipe (to read) and Flowpipe (to act), configured the way each plugin documents. In the container you have two ways:
+In the container you have three ways to give opslens its logins:
 
-- **Environment variables** that a plugin reads, in `credentials.env` (for AWS, the standard `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, or a role if the host has one).
+- **`opslens connect`**: `docker compose exec -it opslens opslens connect jira` saves the login inside opslens (the compose file keeps it on the data volume, as `/data/connections.json`, so it survives a recreate).
+- **Environment variables** in `credentials.env` (they always win over saved connections) (for AWS, the standard `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_REGION`, or a role if the host has one).
 - **Connection files**: put Steampipe `.spc` files in `./config/steampipe` and Flowpipe `.fpc` files in `./config/flowpipe`, then uncomment the two volume lines in `docker-compose.yml`.
 
 Each service's tokens, variable names and checks are in [Connect your services](../integrations/).

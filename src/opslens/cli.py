@@ -99,6 +99,92 @@ def doctor(offline: Annotated[bool, typer.Option("--offline", help="Skip anythin
 
 
 @app.command()
+def connect(service: Annotated[str, typer.Argument(help="jira, teams, slack, gitlab, opsgenie, aws or ipstack.")],
+            value: Annotated[list[str] | None, typer.Option("--value", "-v", help="field=value (repeatable). Skips the prompts; "
+                                                            "note that shell history records it.")] = None,
+            config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Save a service's credentials in opslens (readable only by you). No helper config files to edit."""
+    from . import connections
+
+    load(config, set_)
+    try:
+        svc = connections.service(service)
+        given = {}
+        for item in value or []:
+            key, sep, val = item.partition("=")
+            if not sep:
+                raise connections.ConnectionError_(f"--value expects field=value, got '{item}'")
+            given[key.strip()] = val
+        have = connections.load_store().get(service, {})
+        if not value:
+            console.print(f"[bold]{svc.label}[/bold]  (Enter keeps the current value; secrets are not shown as you type)")
+            for f in svc.fields:
+                current = have.get(f.key)
+                hint = "  [set, Enter to keep]" if current and f.secret else (f"  [{current}]" if current else
+                                                                              (f"  [{f.default}]" if f.default else ""))
+                got = typer.prompt(f"  {f.prompt}{'' if f.required else ' (optional)'}{hint}", default="", show_default=False,
+                                   hide_input=f.secret)
+                if got:
+                    given[f.key] = got
+        merged = {**have, **given}
+        path = connections.save(service, merged)
+    except connections.ConnectionError_ as e:
+        raise err(str(e), 2) from e
+    console.print(f"Saved {svc.label} to {path} (only you can read it).")
+    from .sql.client import service_status, start_service
+
+    if service_status() and start_service(restart=True):
+        console.print("Restarted the data service so it picks this up.")
+    console.print(f"next: [{BRAND}]opslens connections --test[/{BRAND}]")
+
+
+@app.command()
+def connections(test: Annotated[bool, typer.Option("--test", help="Also run a one-row read check per connected service.")] = False,
+                fmt: FormatOpt = Format.table, config: ConfigOpt = None, set_: SetOpt = None) -> None:
+    """Which services are connected, and where each value comes from (never the values themselves)."""
+    from . import connections as conns
+
+    cfg, _ = load(config, set_)
+    rows = []
+    for s in conns.status():
+        svc = conns.SERVICES[s.name]
+        where = ", ".join(sorted({v for v in s.sources.values()})) or "-"
+        row = {"service": s.name, "state": s.state, "from": where, "missing": ", ".join(s.missing) or "-"}
+        if test:
+            if s.state == "not set":
+                row["test"] = "-"
+            elif not svc.read_check:
+                row["test"] = "nothing to read"
+            else:
+                try:
+                    res = client.run_live(svc.read_check, cfg.steampipe, allowed=None, max_rows=1)
+                    row["test"] = f"ok ({len(res.rows)} row)"
+                except (client.SteampipeError, guard.UnsafeSQL) as e:
+                    row["test"] = "failed: " + str(e).splitlines()[0][:70]
+        rows.append(row)
+    emit(rows, fmt, title="connections")
+    console.print(f"[dim]Saved in {conns.store_path()}. Connect one with `opslens connect <service>`.[/dim]")
+
+
+@app.command()
+def disconnect(service: Annotated[str, typer.Argument(help="The service to forget.")], config: ConfigOpt = None,
+               set_: SetOpt = None) -> None:
+    """Remove a service's saved credentials from opslens."""
+    from . import connections
+
+    load(config, set_)
+    try:
+        removed = connections.remove(service)
+    except connections.ConnectionError_ as e:
+        raise err(str(e), 2) from e
+    console.print(f"Removed {service}." if removed else f"{service} had nothing saved by `opslens connect`.")
+    from .sql.client import service_status, start_service
+
+    if removed and service_status() and start_service(restart=True):
+        console.print("Restarted the data service so the credentials are gone from it.")
+
+
+@app.command()
 def params(filter_: Annotated[str | None, typer.Option("--filter", help="Only keys containing this text.")] = None,
            fmt: FormatOpt = Format.table, config: ConfigOpt = None, set_: SetOpt = None) -> None:
     """List every setting with its value, where the value came from, and its environment variable."""

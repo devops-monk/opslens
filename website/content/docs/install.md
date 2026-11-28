@@ -37,7 +37,7 @@ Set these as environment variables in front of the command.
 | `OPSLENS_SKIP_ENGINES=1` | Install only opslens; you manage Flowpipe and Steampipe yourself |
 | `OPSLENS_SKIP_PLUGINS=1` | Install the engines but no plugins |
 | `OPSLENS_PLUGINS="aws jira"` | Only these plugins (default: all five) |
-| `OPSLENS_REF=v0.3.2` | Which release to install (default: the one the script shipped with) |
+| `OPSLENS_REF=v0.3.3` | Which release to install (default: the one the script shipped with) |
 | `OPSLENS_BIN_DIR=~/.local/bin` | Where binaries go |
 | `OPSLENS_PACKAGE=<path or URL>` | Install opslens from this wheel or sdist instead of GitHub |
 | `OPSLENS_DRY_RUN=1` | Print, don't run |
@@ -51,7 +51,7 @@ curl -fsSL https://opslens.devops-monk.com/install.sh | OPSLENS_EXTRAS="ai web" 
 **pip or pipx** (Python 3.11 or newer). This installs opslens only; add Flowpipe and Steampipe yourself if you want live data and deploys.
 
 ```bash
-pipx install "opslens[web,ai] @ https://github.com/devops-monk/opslens/archive/v0.3.2.tar.gz"
+pipx install "opslens[web,ai] @ https://github.com/devops-monk/opslens/archive/v0.3.3.tar.gz"
 # once published to PyPI:  pipx install "opslens[web,ai]"
 ```
 
@@ -80,19 +80,15 @@ opslens doctor          # checks opslens, the catalogs, Flowpipe, Steampipe and 
 
 ## Connect your accounts (only when you want live data)
 
-opslens stores no credentials. Each service has two halves, **reading** (a Steampipe plugin) and **acting** (a Flowpipe mod), and each reads its credentials from environment variables or a small config file. Jira, for example:
+opslens keeps each tool's login for you. One command per tool; you never edit another program's config files:
 
 ```bash
-export JIRA_URL="https://your-domain.atlassian.net/"
-export JIRA_USER="you@company.com"
-export JIRA_TOKEN="<atlassian api token>"        # read:  the Steampipe plugin
-export JIRA_API_TOKEN="<atlassian api token>"    # act:   the Flowpipe mod (same token, different name)
-steampipe service start
-opslens doctor
+opslens connect jira           # asks for the URL, your email and an API token (hidden as you type)
+opslens connections --test     # which tools are connected, and does each one answer?
 opslens query "select key, summary from jira_issue limit 3"
 ```
 
-**The full guide, with Jira, Teams, Slack, GitLab, Opsgenie, AWS and ipstack (variables, config files, how to get a token, how to test each, and the errors you will see) is [Connect your services](../integrations/).** AWS uses your normal profile or environment variables.
+The same works for Teams, Slack, GitLab, Opsgenie, AWS and ipstack. **The full guide (what each one asks for, where to get the token, how it is stored and how to test it) is [Connect your services](../integrations/).** In a container or CI, set environment variables instead; they always win.
 
 ## Uninstall
 

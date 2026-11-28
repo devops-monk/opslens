@@ -13,6 +13,8 @@ Lots of commands, but they follow one journey. Read the picture left to right: y
 | Word | Plain meaning | Example |
 |---|---|---|
 | **doctor** | A health check: is everything installed? Tells you the fix for anything missing | `opslens doctor` |
+| **connect** | Save the login for a tool (Jira, Teams, Slack, GitLab, Opsgenie, AWS, ipstack) inside opslens, so you never edit other programs' files | `opslens connect jira` |
+| **connections** | Show which tools are connected and where each value comes from (never the secret itself). `--test` checks each one | `opslens connections --test` |
 | **params** | Short for parameters. Lists every **setting** opslens has, its current value, and where the value came from | `opslens params` |
 | **config** | Shows the settings opslens is using right now, as a file | `opslens config` |
 | **search / find** | Look things up using plain words, like a search box | `opslens search "unused disks"` |
@@ -39,6 +41,9 @@ New to all this? Read [Explained simply](../docs/simple/) first; it walks the sa
 ```bash
 opslens --version                     # which version is installed
 opslens doctor                        # tools, plugins, Docker (for AWS actions), and the fix for anything missing
+opslens connect jira                  # save a tool's login inside opslens (prompts; secrets are hidden)
+opslens connections --test            # which tools are connected, and does each one answer?
+opslens disconnect jira               # forget a tool's saved login
 opslens init                          # write a commented opslens.yaml with every setting at its default
 opslens params                        # every setting, its value, where it came from, and its env variable
 opslens config                        # the merged configuration as YAML

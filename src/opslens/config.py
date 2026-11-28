@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 CONFIG_ENV = "OPSLENS_CONFIG"
 ENV_PREFIX = "OPSLENS__"
@@ -43,6 +43,7 @@ class SteampipeConfig(_Strict):
     dsn: str | None = Field(None, description="Full connection string; overrides host/port/database/user/password.")
     statement_timeout_s: int = Field(60, ge=1, le=3600)
     max_rows: int = Field(1000, ge=1, le=1_000_000)
+    auto_start: bool = Field(True, description="Start the data service when a live query needs it and it is not running.")
 
 
 class FlowpipeConfig(_Strict):
@@ -75,6 +76,19 @@ class Config(_Strict):
     flowpipe: FlowpipeConfig = Field(default_factory=FlowpipeConfig)
     catalog: CatalogConfig = Field(default_factory=CatalogConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    connections: dict[str, dict[str, str]] = Field(
+        default_factory=dict, description="Non-secret connection details (URLs, user names). Secrets: `opslens connect`.")
+
+    @field_validator("connections")
+    @classmethod
+    def _no_secrets(cls, v: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+        from .connections import ConnectionError_, validate_yaml
+
+        try:
+            validate_yaml(v)
+        except ConnectionError_ as e:
+            raise ValueError(str(e)) from e
+        return v
 
 
 # ------------------------------------------------------------------ layering
@@ -195,6 +209,10 @@ steampipe:
 flowpipe:
   url: http://localhost:7103
   workspace_dir: generated    # where generated mods are written (a git repo is recommended)
+
+# connections:                  # non-secret details only; secrets go through `opslens connect <service>`
+#   jira: {url: "https://your-domain.atlassian.net/", user: you@company.com}
+#   gitlab: {url: "https://gitlab.company.com/api/v4"}
 
 # catalog:
 #   plugins: [aws, jira, gitlab, opsgenie, microsoft365]   # limit searches to these plugins

@@ -58,7 +58,7 @@ The same engine with a visual builder: pick a template, click a step to edit it,
 ## The whole tour as one script
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/devops-monk/opslens/v0.3.2/examples/demo.sh && sh demo.sh
+curl -fsSLO https://raw.githubusercontent.com/devops-monk/opslens/v0.3.3/examples/demo.sh && sh demo.sh
 ```
 
 ## Next

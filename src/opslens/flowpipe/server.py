@@ -78,7 +78,9 @@ def start(mod_dir: Path, spec_hash: str, *, binary: str = "flowpipe", port: int 
     for k, v in (variables or {}).items():
         cmd += ["--var", f"{k}={v}"]
     log = open(sd / "server.log", "ab")  # noqa: SIM115 - handed to the child process
-    proc = subprocess.Popen(cmd, cwd=mod_dir, stdout=log, stderr=log, start_new_session=True)
+    from ..connections import child_env
+
+    proc = subprocess.Popen(cmd, cwd=mod_dir, stdout=log, stderr=log, start_new_session=True, env=child_env())
     state = {"pid": proc.pid, "port": port, "spec_hash": spec_hash, "started": time.time(), "mod": mod_dir.name}
     (sd / "server.json").write_text(json.dumps(state))
     client = Flowpipe(f"http://localhost:{port}")

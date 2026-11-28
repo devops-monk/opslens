@@ -109,3 +109,16 @@ def test_query_with_plain_words_points_to_search():
     r = CliRunner().invoke(app, ["query", "Get information about an IP address", "--source", "demo"])
     assert r.exit_code == 3
     assert "opslens search" in r.output
+
+
+def test_connect_saves_privately_and_connections_never_prints_the_secret(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPSLENS_CONNECTIONS_FILE", str(tmp_path / "c.json"))
+    monkeypatch.setattr("shutil.which", lambda *_: None)  # no data service to restart in tests
+    r = run("connect", "slack", "--value", "token=xoxb-SECRET-VALUE")
+    assert r.exit_code == 0, r.output
+    r = run("connections")
+    assert r.exit_code == 0 and "slack" in r.output and "xoxb-SECRET-VALUE" not in r.output
+    r = run("connect", "nope")
+    assert r.exit_code == 2 and "unknown service" in r.output
+    r = run("disconnect", "slack")
+    assert r.exit_code == 0 and "Removed slack" in r.output

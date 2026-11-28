@@ -21,6 +21,7 @@ services:
       OPSLENS_TEAM_PASSWORD: ${OPSLENS_TEAM_PASSWORD:?set OPSLENS_TEAM_PASSWORD in .env (12+ characters)}
       OPSLENS_SESSION_SECRET: ${OPSLENS_SESSION_SECRET:?set OPSLENS_SESSION_SECRET in .env (a long random string)}
       OPSLENS__FLOWPIPE__WORKSPACE_DIR: /data/workspace      # saved automations and the audit log live on the volume
+      OPSLENS_CONNECTIONS_FILE: /data/connections.json       # logins saved by `opslens connect` survive a recreate
     env_file:
       - ./credentials.env                                    # AWS_* and any other variables your plugins read (may be empty)
     volumes:

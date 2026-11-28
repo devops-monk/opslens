@@ -262,11 +262,12 @@ def simple_flow() -> Markup:
 
 
 def command_map() -> Markup:
-    s = Svg(940, 430, "cmdmap", "Every opslens command, in the order you would use it",
+    s = Svg(940, 480, "cmdmap", "Every opslens command, in the order you would use it",
             "Six stages left to right: get ready, find, ask, plan, test, go live. Each lists its commands with a one-line meaning. "
             "A strip below shows serve, the web app.")
     stages = [
-        ("1 GET READY", "Is everything set up?", [("doctor", "is everything installed?"), ("init", "make a settings file"),
+        ("1 GET READY", "Is everything set up?", [("doctor", "is everything installed?"), ("connect", "save a tool's login"),
+                                                  ("connections", "who is connected"), ("init", "make a settings file"),
                                                   ("params", "list every setting"), ("config", "settings in use")]),
         ("2 FIND", "What can I look at,\nand what can I do?", [("search", "find by plain words"), ("find", "narrow the search"),
                                                               ("describe", "see one in detail"), ("catalog", "what is in the lists")]),
@@ -281,14 +282,14 @@ def command_map() -> Markup:
     w, gap, x0 = 145, 10, 10
     for i, (title, sub, cmds) in enumerate(stages):
         x = x0 + i * (w + gap)
-        s.box(x, 14, w, 330, title, sub, "container" if i < 5 else "store")
+        s.box(x, 14, w, 380, title, sub, "container" if i < 5 else "store")
         for j, (cmd, meaning) in enumerate(cmds):
             y = 108 + j * 46
             s.parts.append(f'<text x="{x + 12}" y="{y}" class="dg-cmd">{escape(cmd)}</text>')
             s.parts.append(f'<text x="{x + 12}" y="{y + 15}" class="dg-cm">{escape(meaning)}</text>')
         if i < 5:
             s.arrow(x + w, 80, x + w + gap, 80, "")
-    s.box(10, 362, 920, 56, "WEB APP:  serve", "the same things with buttons instead of typing", "person")
+    s.box(10, 412, 920, 56, "WEB APP:  serve", "the same things with buttons instead of typing", "person")
     return s.render()
 
 

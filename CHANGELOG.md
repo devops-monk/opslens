@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3 (2026-11-28)
+
+- **`opslens connect <service>`**, `opslens connections [--test]` and `opslens disconnect <service>`: opslens now owns the credentials for
+  Jira, Teams, Slack, GitLab, Opsgenie, AWS and ipstack. They are saved privately (`~/.config/opslens/connections.json`, mode 600) and
+  handed to the programs opslens starts, so there are no helper config files to edit. Real environment variables still win.
+  Non-secret details can go in `opslens.yaml` under `connections:`; secrets are refused there.
+- The data service now starts automatically when a live query needs it (`steampipe.auto_start`, on by default).
+
 ## 0.3.2 (2026-11-28)
 
 - `opslens query` given plain words (not SQL) now says so and suggests `opslens search`.

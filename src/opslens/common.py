@@ -38,9 +38,13 @@ def err(msg: str, code: int = 1) -> typer.Exit:
 
 def load(config: str | None, sets: list[str] | None) -> tuple[Config, dict[str, str]]:
     try:
-        return load_config(config, sets)
+        cfg, source = load_config(config, sets)
     except ConfigError as e:
         raise err(str(e), 2) from e
+    from . import connections
+
+    connections.activate(cfg.connections)
+    return cfg, source
 
 
 def _cell(v: Any) -> str:

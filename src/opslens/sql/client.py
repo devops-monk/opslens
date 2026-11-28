@@ -51,6 +51,17 @@ def service_status(binary: str = "steampipe") -> dict[str, str] | None:
     return info or None
 
 
+def start_service(binary: str = "steampipe", *, restart: bool = False) -> bool:
+    """Start (or restart) the data service with opslens's stored connections in its environment."""
+    if not shutil.which(binary):
+        return False
+    from ..connections import child_env
+
+    r = subprocess.run([binary, "service", "restart" if restart else "start"], check=False, capture_output=True, text=True,
+                       timeout=180, env=child_env())
+    return r.returncode == 0
+
+
 def connection_string(cfg: SteampipeConfig) -> str:
     if cfg.dsn:
         return cfg.dsn
@@ -58,6 +69,8 @@ def connection_string(cfg: SteampipeConfig) -> str:
     host, port = cfg.host, cfg.port
     if not password:
         st = service_status()
+        if not st and cfg.auto_start and start_service():
+            st = service_status()
         if not st:
             raise SteampipeError("Steampipe is not running. Start it with `steampipe service start`, or try the "
                                  "bundled sample data with `--source demo`.")

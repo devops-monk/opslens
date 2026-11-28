@@ -1,8 +1,116 @@
 # Connect your services
 
-How to give opslens access to Teams, Slack, Jira, GitLab, Opsgenie and AWS, and how to check each connection works before you rely on it.
+How to give opslens access to Jira, Teams, Slack, GitLab, Opsgenie, AWS and ipstack, and how to check each connection works before you rely on it.
 
-## Two sides, two sets of credentials
+## The easy way: `opslens connect`
+
+You do not edit any other program's config files. Tell opslens once, and it passes the details to the programs it runs.
+
+```bash
+opslens connect jira          # asks for the URL, your email and an API token (the token is hidden as you type)
+opslens connections --test    # which tools are connected, and does each one answer?
+```
+
+That is all. A real run looks like this (the token is not echoed):
+
+```text
+$ opslens connect jira
+Jira  (Enter keeps the current value; secrets are not shown as you type)
+  Jira URL, e.g. https://your-domain.atlassian.net/:
+  Account email:
+  API token (Atlassian account, security, API tokens):
+Saved Jira to /Users/you/.config/opslens/connections.json (only you can read it).
+next: opslens connections --test
+```
+
+```text
+$ opslens connections
+ service   state      from             missing
+ jira      connected  opslens connect  -
+ teams     not set    -                access_token
+ slack     connected  opslens connect  -
+ ...
+```
+
+`connections` shows **where** each value comes from and never the value. Other commands:
+
+```bash
+opslens connect slack --value token=xoxb-...     # no prompts, for scripts (your shell history records it)
+opslens disconnect jira                          # forget it
+```
+
+### What each service asks for
+
+| Command | Asks for | Where to get it |
+|---|---|---|
+| `opslens connect jira` | URL, email, API token | Atlassian account, security, API tokens |
+| `opslens connect teams` | A Microsoft Graph access token (to post); optionally tenant id, client id and secret (to look up teams) | See [Microsoft Teams](#microsoft-teams) below. The token expires in about an hour |
+| `opslens connect slack` | A bot token (`xoxb-...`) | A Slack app with `chat:write`; see [Slack](#slack) |
+| `opslens connect gitlab` | A personal access token; the API URL if self-managed | GitLab, preferences, access tokens |
+| `opslens connect opsgenie` | An API key; the API host if you are in the EU | Opsgenie, settings, API key management |
+| `opslens connect aws` | A profile name, or an access key id and secret | Your normal AWS credentials |
+| `opslens connect ipstack` | An access key | ipstack account |
+
+Fields marked optional can be left empty with Enter.
+
+### Where it is saved, and how safe that is
+
+- Saved in `~/.config/opslens/connections.json` (change it with `OPSLENS_CONNECTIONS_FILE`). The folder is private to you and the file is readable only by you (mode 600).
+- It is **plain text**, protected by file permissions, like `~/.aws/credentials`. It is not encrypted and not in a keychain. Anyone who can read your files as you can read it.
+- opslens never prints a stored secret, never writes it into a spec or an automation folder, and refuses a spec that contains one.
+- **Real environment variables always win** over the saved file. So in a container or CI you can skip `connect` entirely and set the variables (the names are in [the table below](#at-a-glance)).
+- Non-secret details can also live in `opslens.yaml`:
+
+```yaml
+connections:
+  jira: {url: "https://your-domain.atlassian.net/", user: you@company.com}
+  gitlab: {url: "https://gitlab.company.com/api/v4"}
+```
+
+  A secret (a token, a key, a password) written there is **refused** with a message pointing you to `opslens connect`, because `opslens.yaml` is usually committed to git.
+
+### How it works, in one paragraph
+
+Each tool is used in two ways: opslens **reads** data (through a data service it starts for you the first time a live query needs it) and **acts** (through a workflow server it starts when you deploy). `connect` stores your details; every time opslens starts one of those two programs, it hands them the details. If the data service is already running when you `connect` or `disconnect`, opslens restarts it so the change takes effect. If you would rather manage those programs' own config files, that still works; see [Setting things up by hand](#setting-things-up-by-hand).
+
+### Use it
+
+[Install a template](../packs/) for the service, fill in its variables (a Jira project key, Teams ids), then [preview and deploy](../deploy/). Every action you can use is in the [Actions reference](../actions/).
+
+## At a glance
+
+| Service | Get a credential | Variables (act / read) | Test it |
+|---|---|---|---|
+| [Jira](#jira) | Atlassian account, security, API tokens | `JIRA_URL` `JIRA_USER` `JIRA_API_TOKEN` / `JIRA_TOKEN` | `opslens query "select key from jira_issue limit 1"` |
+| [Microsoft Teams](#microsoft-teams) | A Microsoft Graph access token (expires in about an hour) | `TEAMS_ACCESS_TOKEN` / app registration in `microsoft365.spc` | `flowpipe pipeline run teams.pipeline.list_teams` |
+| [Slack](#slack) | A Slack app bot token, `chat:write` | `SLACK_TOKEN` / none | `flowpipe pipeline run slack.pipeline.get_current_user` |
+| [GitLab](#gitlab) | Personal access token (`read_api`, or `api` to change) | `GITLAB_TOKEN` (and `GITLAB_ADDR` if self-managed) | `opslens query "select full_path from gitlab_project limit 1"` |
+| [Opsgenie](#opsgenie) | API key management | `OPSGENIE_ALERT_API_KEY` `OPSGENIE_INCIDENT_API_KEY` / `token` in `opsgenie.spc` | `opslens query "select message from opsgenie_alert limit 1"` |
+| [AWS](#aws) | Your normal AWS profile or keys | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` | `opslens query "select instance_id from aws_ec2_instance limit 1"` |
+| [ipstack](#ipstack-ip-lookup) | An ipstack access key | `IPSTACK_ACCESS_KEY` | see the [IP example](../ai/#bonus-find-this-machines-public-ip-with-the-ipstack-mod) |
+
+## The same four steps for every service
+
+1. **Get the credential** from the service (the table above says where).
+2. **Save it:** `opslens connect <service>`.
+3. **Test it:** `opslens connections --test`. A row or "ok" means it works; the error table at the end decodes the rest.
+4. **Use it.** Install a [template](../packs/) for that service, fill in its variables, then [preview and deploy](../deploy/).
+
+A worked Jira run, start to finish:
+
+```bash
+opslens connect jira
+opslens connections --test                                               # jira: ok
+opslens query "select key, summary, status from jira_issue limit 3"     # read works
+opslens pack install engineering/stale-jira-issues --out generated       # pick a template
+opslens preview generated/stale_jira_issues                              # live read, nothing sent
+```
+
+## Setting things up by hand
+
+You do not need this section if you used `opslens connect`. It is here for people who already manage these programs' own configuration, or who run in a container with environment variables.
+
+### Two sides, two sets of credentials
 
 An automation has two halves, and each is a separate program with its own credentials. opslens stores neither.
 
@@ -20,38 +128,7 @@ Two rules apply everywhere:
 
 Environment variables are the simplest route and the only practical one in a container. Set them **before** the program starts: Steampipe reads them when its service starts, and Flowpipe when `opslens deploy` starts its server. If you change one, restart (`steampipe service restart`, then deploy again).
 
-## At a glance
-
-| Service | Get a credential | Variables (act / read) | Test it |
-|---|---|---|---|
-| [Jira](#jira) | Atlassian account, security, API tokens | `JIRA_URL` `JIRA_USER` `JIRA_API_TOKEN` / `JIRA_TOKEN` | `opslens query "select key from jira_issue limit 1"` |
-| [Microsoft Teams](#microsoft-teams) | A Microsoft Graph access token (expires in about an hour) | `TEAMS_ACCESS_TOKEN` / app registration in `microsoft365.spc` | `flowpipe pipeline run teams.pipeline.list_teams` |
-| [Slack](#slack) | A Slack app bot token, `chat:write` | `SLACK_TOKEN` / none | `flowpipe pipeline run slack.pipeline.get_current_user` |
-| [GitLab](#gitlab) | Personal access token (`read_api`, or `api` to change) | `GITLAB_TOKEN` (and `GITLAB_ADDR` if self-managed) | `opslens query "select full_path from gitlab_project limit 1"` |
-| [Opsgenie](#opsgenie) | API key management | `OPSGENIE_ALERT_API_KEY` `OPSGENIE_INCIDENT_API_KEY` / `token` in `opsgenie.spc` | `opslens query "select message from opsgenie_alert limit 1"` |
-| [AWS](#aws) | Your normal AWS profile or keys | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` | `opslens query "select instance_id from aws_ec2_instance limit 1"` |
-| [ipstack](#ipstack-ip-lookup) | An ipstack access key | `IPSTACK_ACCESS_KEY` | see the [IP example](../ai/#bonus-find-this-machines-public-ip-with-the-ipstack-mod) |
-
-## The same five steps for every service
-
-1. **Get the credential** from the service (the table above says where).
-2. **Set it** as an environment variable in the shell that will start opslens, Steampipe and Flowpipe. Or put it in the service's `.spc` (read) or `.fpc` (act) file, shown in each section below.
-3. **Restart what reads it.** Steampipe reads credentials when its service starts: `steampipe service restart`. Flowpipe picks them up when `opslens deploy` starts its server.
-4. **Test it** with the one-line command from the table. A row or a JSON answer means it works; the error tables at the end of this page decode the rest.
-5. **Use it.** Install a [template](../packs/) for that service, fill in its variables (team and channel ids, Jira project key), then [preview and deploy](../deploy/).
-
-A worked Jira run, start to finish:
-
-```bash
-export JIRA_URL="https://your-domain.atlassian.net/" JIRA_USER="you@company.com"
-export JIRA_TOKEN="<token>" JIRA_API_TOKEN="<token>"
-steampipe service restart
-opslens query "select key, summary, status from jira_issue limit 3"      # read works
-opslens pack install engineering/stale-jira-issues --out generated        # pick a template
-opslens preview generated/stale_jira_issues                              # live read, nothing sent
-```
-
-## Check everything first
+### Check everything first
 
 ```bash
 opslens doctor
@@ -63,7 +140,7 @@ shows which tools and plugins are installed, and whether Docker is available (ne
 opslens query "select 1 as ok from jira_issue limit 1"      # reads through Steampipe, needs steampipe service start
 ```
 
-## Microsoft Teams
+### Microsoft Teams
 
 The Teams mod sends messages through the Microsoft Graph API with an **access token**.
 
@@ -114,7 +191,7 @@ Error: Unauthorized
 401 Unauthorized
 ```
 
-## Slack
+### Slack
 
 **Act.** One token, from a Slack app you create at api.slack.com/apps:
 
@@ -144,7 +221,7 @@ flowpipe pipeline run slack.pipeline.get_current_user
 
 A bad token answers `invalid_auth`; no token at all answers `not_authed`. Both mean Flowpipe reached Slack and Slack refused the credential.
 
-## Jira
+### Jira
 
 Jira has different variable names on its two sides. This trips people up.
 
@@ -183,7 +260,7 @@ connection "jira" {
 
 The account must be able to create issues in the project your automation names (`jira_project`). **Check:** `opslens query "select key, summary from jira_issue limit 3"`.
 
-## GitLab
+### GitLab
 
 One token works for both sides. Create a personal access token with `read_api` for reading; actions that change things (creating issues, updating a project) need `api`.
 
@@ -202,18 +279,18 @@ connection "gitlab" "default" {
 
 and, for a self-managed server, `~/.steampipe/config/gitlab.spc` with `baseurl` and `token`. **Check:** `opslens query "select full_path, visibility from gitlab_project limit 3"`.
 
-## Opsgenie
+### Opsgenie
 
 Create API keys under Settings, API key management. Alerts and incidents use separate keys.
 
 | Side | Setting |
 |---|---|
 | Act (Flowpipe) | `OPSGENIE_ALERT_API_KEY`, `OPSGENIE_INCIDENT_API_KEY`, or `connection "opsgenie" "default" { alert_api_key = ...  incident_api_key = ... }` in `~/.flowpipe/config/opsgenie.fpc` |
-| Read (Steampipe) | `token` (and `url`, which must be `api.eu.opsgenie.com` for an EU account) in `~/.steampipe/config/opsgenie.spc` |
+| Read (Steampipe) | `OPSGENIE_TOKEN` and `OPSGENIE_URL` (`api.eu.opsgenie.com` for an EU account), or `token` and `url` in `~/.steampipe/config/opsgenie.spc` |
 
 **Check:** `opslens query "select message, priority from opsgenie_alert limit 3"`.
 
-## AWS
+### AWS
 
 **Read.** The Steampipe AWS plugin uses the standard AWS credential chain, exactly like the AWS CLI: environment variables, a profile, or an instance role. Nothing opslens-specific is needed, and a read-only policy such as `ReadOnlyAccess` or `SecurityAudit` is enough for the templates' queries.
 
@@ -238,7 +315,7 @@ connection "aws" "aws_access_key_pair" {
 
 This matters for the [team Docker image](../hosting/): it has no Docker daemon inside, so AWS actions cannot run in it as shipped. Reading AWS, previews, and every non-AWS action work. To run the AWS actions, run opslens on a host that has Docker ([the installer or pip](../install/)), and treat giving a container the host's Docker socket as a privileged setup you test for yourself.
 
-## ipstack (IP lookup)
+### ipstack (IP lookup)
 
 Look up an IP address, or the caller's own address. Act side only: `IPSTACK_ACCESS_KEY`, or `~/.flowpipe/config/ipstack.fpc`:
 
