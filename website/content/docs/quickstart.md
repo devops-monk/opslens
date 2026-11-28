@@ -63,6 +63,6 @@ curl -fsSLO https://raw.githubusercontent.com/devops-monk/opslens/v0.3.1/example
 
 ## Next
 
-- Connect an account and test on [live data](../preview/), then [deploy](../deploy/).
+- [Connect your services](../integrations/) (Jira, Teams, Slack, GitLab, Opsgenie, AWS), test on [live data](../preview/), then [deploy](../deploy/).
 - Build your own in the [web app](../app/) or from the [spec format](../spec/).
 - Let [AI draft it](../ai/) from a sentence.

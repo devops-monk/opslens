@@ -99,3 +99,13 @@ def test_explain_works_without_ai(tmp_path):
 def test_show_context_prints_what_would_be_sent_and_redacts():
     r = run("generate", "unattached ebs volumes owned by bob@example.com", "--show-context")
     assert r.exit_code == 0 and "aws_ebs_volume" in r.output and "bob@example.com" not in r.output and "<email>" in r.output
+
+
+def test_query_with_plain_words_points_to_search():
+    from typer.testing import CliRunner
+
+    from opslens.cli import app
+
+    r = CliRunner().invoke(app, ["query", "Get information about an IP address", "--source", "demo"])
+    assert r.exit_code == 3
+    assert "opslens search" in r.output

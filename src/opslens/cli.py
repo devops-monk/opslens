@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from enum import Enum
 from pathlib import Path
@@ -94,6 +95,7 @@ def doctor(offline: Annotated[bool, typer.Option("--offline", help="Skip anythin
             console.print(f"        fix: [{BRAND}]{c.fix}[/{BRAND}]")
     if any(c.status == "fail" for c in checks):
         raise typer.Exit(1)
+    console.print("\nHow to connect Jira, Teams, Slack, GitLab, Opsgenie and AWS: https://opslens.devops-monk.com/docs/integrations/", style="dim")
 
 
 @app.command()
@@ -249,7 +251,11 @@ def query(sql: Annotated[str | None, typer.Argument(help="One read-only SELECT. 
         res = (client.run_demo(text, allowed=allowed, max_rows=limit or cfg.steampipe.max_rows) if source is Source.demo
                else client.run_live(text, cfg.steampipe, allowed=allowed, max_rows=limit))
     except guard.UnsafeSQL as e:
-        raise err(f"refused: {e}", 3) from e
+        hint = ""
+        if not re.match(r"\s*(select|with|explain|\()", text, re.IGNORECASE):
+            hint = ('\n`query` takes SQL, not plain words. To find the table or action for a question, run: '
+                    f'opslens search "{text.strip()[:60]}"')
+        raise err(f"refused: {e}{hint}", 3) from e
     except client.SteampipeError as e:
         raise err(str(e)) from e
     emit(res.rows, fmt, columns=res.columns,

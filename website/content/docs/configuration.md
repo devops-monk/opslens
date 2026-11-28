@@ -1,5 +1,7 @@
 # Configuration
 
+> This page is for opslens's own settings. To give opslens access to **Jira, Teams, Slack, GitLab, Opsgenie or AWS**, see [Connect your services](../integrations/).
+
 opslens works with no configuration at all. Everything has a default; change only what you need.
 
 ## Where settings come from

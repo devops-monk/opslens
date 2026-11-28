@@ -25,7 +25,7 @@ An automation is a small **spec**: when it runs, what to look for (a read-only S
 - **What you reviewed is what runs.** A deploy needs the hash of the exact spec you read. Edit the spec and the hash changes.
 - **No hidden steps.** Every generated file is plain text you can open. Nothing is hand-edited without being noticed.
 - **AI is a convenience, not a dependency.** It fills in a spec; it never writes code, never sees your cloud data, and never skips the checks.
-- **Credentials stay in Flowpipe.** Specs never contain secrets; opslens refuses any that look like one.
+- **Credentials stay in Flowpipe and Steampipe.** Specs never contain secrets; opslens refuses any that look like one. How to connect each tool: [Connect your services](integrations/).
 
 ## Where to start
 

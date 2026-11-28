@@ -80,12 +80,19 @@ opslens doctor          # checks opslens, the catalogs, Flowpipe, Steampipe and 
 
 ## Connect your accounts (only when you want live data)
 
-opslens uses Steampipe's and Flowpipe's own credential setup, so nothing is stored by opslens. Configure each service the way its plugin documents (for AWS that is simply your normal AWS profile or environment variables), then run:
+opslens stores no credentials. Each service has two halves, **reading** (a Steampipe plugin) and **acting** (a Flowpipe mod), and each reads its credentials from environment variables or a small config file. Jira, for example:
 
 ```bash
-opslens doctor          # confirms each plugin can connect
-opslens query "select count(*) from aws_ebs_volume"
+export JIRA_URL="https://your-domain.atlassian.net/"
+export JIRA_USER="you@company.com"
+export JIRA_TOKEN="<atlassian api token>"        # read:  the Steampipe plugin
+export JIRA_API_TOKEN="<atlassian api token>"    # act:   the Flowpipe mod (same token, different name)
+steampipe service start
+opslens doctor
+opslens query "select key, summary from jira_issue limit 3"
 ```
+
+**The full guide, with Jira, Teams, Slack, GitLab, Opsgenie, AWS and ipstack (variables, config files, how to get a token, how to test each, and the errors you will see) is [Connect your services](../integrations/).** AWS uses your normal profile or environment variables.
 
 ## Uninstall
 
