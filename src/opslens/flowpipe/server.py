@@ -37,6 +37,14 @@ def alive(pid: int) -> bool:
         return False
 
 
+def is_running(st: dict[str, Any] | None) -> bool:
+    """The recorded server is really ours: the pid is alive AND Flowpipe answers on its port.
+
+    A pid alone is not enough: after a container or machine restart the number can belong to an unrelated process.
+    """
+    return bool(st) and alive(st["pid"]) and Flowpipe(f"http://localhost:{st['port']}").up()
+
+
 def free_port(start: int = 7103) -> int:
     import socket
 
@@ -60,7 +68,7 @@ def start(mod_dir: Path, spec_hash: str, *, binary: str = "flowpipe", port: int 
     if not shutil.which(binary):
         raise FlowpipeError("flowpipe is not installed (brew install turbot/tap/flowpipe)")
     st = read_state(mod_dir)
-    if st and alive(st["pid"]):
+    if is_running(st):
         raise FlowpipeError(f"already deployed (pid {st['pid']}, port {st['port']}); `opslens undeploy {mod_dir}` first")
     sd = state_dir(mod_dir)
     data = sd / "data"
@@ -87,7 +95,7 @@ def stop(mod_dir: Path) -> bool:
     st = read_state(mod_dir)
     if not st:
         return False
-    if alive(st["pid"]):
+    if is_running(st):  # never signal a pid we cannot confirm is our Flowpipe (it may have been recycled)
         try:
             os.killpg(os.getpgid(st["pid"]), signal.SIGTERM)
         except (ProcessLookupError, PermissionError):

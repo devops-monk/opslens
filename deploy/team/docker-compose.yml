@@ -1,0 +1,58 @@
+# opslens for a team: the full web app (build, test on live data, deploy, approve) behind HTTPS, with sign-in.
+#
+#   cp .env.example .env      # set OPSLENS_HOST, OPSLENS_TEAM_PASSWORD and OPSLENS_SESSION_SECRET
+#   touch credentials.env     # put AWS_ACCESS_KEY_ID=... style variables here (or leave it empty)
+#   docker compose up -d
+#
+# Caddy gets and renews a free HTTPS certificate for OPSLENS_HOST (ports 80 and 443 must reach this machine, and the DNS
+# name must point at it). The opslens port is never published: only Caddy can reach it.
+services:
+  opslens:
+    image: abhaypratap/opslens:${OPSLENS_VERSION:-latest}
+    command:
+      - serve
+      - --mode=team
+      - --host=0.0.0.0
+      - --port=8077
+      - --auth=password
+      - --allow-host=${OPSLENS_HOST:?set OPSLENS_HOST in .env, e.g. ops.example.com}
+      - --trust-proxy
+    environment:
+      OPSLENS_TEAM_PASSWORD: ${OPSLENS_TEAM_PASSWORD:?set OPSLENS_TEAM_PASSWORD in .env (12+ characters)}
+      OPSLENS_SESSION_SECRET: ${OPSLENS_SESSION_SECRET:?set OPSLENS_SESSION_SECRET in .env (a long random string)}
+      OPSLENS__FLOWPIPE__WORKSPACE_DIR: /data/workspace      # saved automations and the audit log live on the volume
+    env_file:
+      - ./credentials.env                                    # AWS_* and any other variables your plugins read (may be empty)
+    volumes:
+      - opslens-data:/data
+      # Steampipe and Flowpipe connection files (see docs/hosting): uncomment once you have created them.
+      # - ./config/steampipe:/home/opslens/.steampipe/config:ro
+      # - ./config/flowpipe:/home/opslens/.flowpipe/config:ro
+    expose:
+      - "8077"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8077/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      OPSLENS_HOST: ${OPSLENS_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      opslens:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  opslens-data:
+  caddy-data:

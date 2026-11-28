@@ -226,3 +226,20 @@ def test_only_a_top_level_limit_is_warned_about():
     s = packs.get("finops-cleanup/unattached-volumes")
     s.detect.sql += "\nlimit 5"
     assert [i for i in check.validate(s) if i.code == "sql"]
+
+
+def test_every_shipped_pack_finds_rows_on_the_sample_data():
+    """Each template must be demonstrable with no account: its query returns rows from the bundled sample tables."""
+    from opslens.config import SteampipeConfig
+    from opslens.validate.preview import preview
+
+    for row in packs.list_packs():
+        p = preview(packs.get(row["pack"]), "demo", SteampipeConfig())
+        assert p.rows, f"{row['pack']} finds nothing on the sample data"
+
+
+def test_every_shipped_pack_has_a_category_and_description():
+    for row in packs.list_packs():
+        s = packs.get(row["pack"])
+        assert s.description and s.title, row["pack"]
+        assert row["pack"].split("/")[0] in {"finops-cleanup", "governance", "security", "incident", "chatops", "engineering"}, row["pack"]

@@ -1,6 +1,6 @@
 # Use cases
 
-Four automations ship as templates, and they cover the common shapes: clean up waste, enforce a standard, turn alerts into tickets, and gather context during an incident. Each one is a few steps you can read, test on sample data, and change. A fifth section shows how to build one from scratch.
+Four of the [templates](../packs/) are walked through here, and they cover the common shapes: clean up waste, enforce a standard, turn alerts into tickets, and gather context during an incident. Each one is a few steps you can read, test on sample data, and change. A fifth section shows how to build one from scratch.
 
 ## Clean up unattached EBS volumes
 

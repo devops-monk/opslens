@@ -1,0 +1,40 @@
+# Pack: security / stale-access-keys
+# Active IAM access keys older than 90 days should be rotated. Tickets each, then (after approval) sets the key Inactive.
+# Inactive is reversible: nothing is deleted.
+name: stale_iam_access_keys
+title: Deactivate IAM access keys older than 90 days
+description: Finds active IAM access keys older than 90 days, opens a Jira ticket for each, and deactivates them after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select access_key_id, user_name, account_id, create_date, access_key_last_used_date
+    from aws_iam_access_key
+    where status = 'Active' and create_date < now() - interval '90 days'
+notify: true
+approval:
+  prompt: Deactivate these access keys?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Rotate access key {access_key_id} of {user_name}"
+      description: "Access key {access_key_id} of IAM user {user_name} (account {account_id}) is older than 90 days; created {create_date}, last used {access_key_last_used_date}."
+  - pipeline: aws.update_iam_access_key
+    title: Deactivate the key
+    gated: true
+    args:
+      access_key_id: "{access_key_id}"
+      user_name: "{user_name}"
+      status: Inactive

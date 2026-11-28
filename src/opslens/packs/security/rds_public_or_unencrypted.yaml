@@ -1,0 +1,31 @@
+# Pack: security / rds-public-or-unencrypted
+# Finds RDS databases that are reachable from the internet or not encrypted at rest. Files a ticket per database.
+# Reads and notifies only: switching a database off the internet can break clients, so a person decides.
+name: rds_exposure_review
+title: RDS databases that are public or unencrypted
+description: Finds RDS instances that are publicly accessible or unencrypted and opens a Jira ticket for each.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select db_instance_identifier, engine, region, account_id, publicly_accessible, storage_encrypted
+    from aws_rds_db_instance
+    where publicly_accessible = true or storage_encrypted = false
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "RDS {db_instance_identifier} is public or unencrypted"
+      description: "Database {db_instance_identifier} ({engine}) in account {account_id} / {region}: publicly accessible = {publicly_accessible}, encrypted = {storage_encrypted}."

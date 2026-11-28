@@ -485,7 +485,7 @@ def _deployed(path: Path) -> tuple[Any, dict[str, Any], Any]:
     if mod_dir is None:
         raise err("pass the generated mod directory (from `opslens pack install` or `render`)", 2)
     st = server.read_state(mod_dir)
-    if not st or not server.alive(st["pid"]):
+    if not st or not server.is_running(st):
         raise err(f"{mod_dir} is not deployed (`opslens deploy {mod_dir}`)")
     return spec, st, Flowpipe(f"http://localhost:{st['port']}")
 
@@ -663,27 +663,41 @@ def explain(path: Annotated[Path, typer.Argument(help="A spec YAML or generated 
 @app.command()
 def serve(host: Annotated[str, typer.Option("--host", help="Bind address.")] = "127.0.0.1",
           port: Annotated[int, typer.Option("--port")] = 8077,
-          mode: Annotated[str, typer.Option("--mode", help="local: full workflow on your machine. demo: sample data only, safe to expose.")] = "local",
+          mode: Annotated[str, typer.Option("--mode", help="local: one person, loopback only. team: hosted for a team, needs --auth. demo: sample data only, safe to expose.")] = "local",
           workspace: Annotated[Path | None, typer.Option("--workspace", help="Where mods are saved (default flowpipe.workspace_dir).")] = None,
-          allow_host: Annotated[list[str] | None, typer.Option("--allow-host", help="Extra Host header to accept (repeatable).")] = None,
+          allow_host: Annotated[list[str] | None, typer.Option("--allow-host", help="Extra Host header to accept (repeatable). Required in team mode.")] = None,
           trust_proxy: Annotated[bool, typer.Option("--trust-proxy", help="Use X-Forwarded-For for rate limiting (behind nginx).")] = False,
+          auth: Annotated[str | None, typer.Option("--auth", help="team mode: password (shared password from OPSLENS_TEAM_PASSWORD) or proxy (an identity proxy; secret in OPSLENS_PROXY_SECRET).")] = None,
+          auth_header: Annotated[str, typer.Option("--auth-header", help="--auth proxy: the header carrying the signed-in user.")] = "X-Forwarded-Email",
+          secure_cookies: Annotated[bool, typer.Option("--secure-cookies/--no-secure-cookies", help="team mode: mark the session cookie Secure (HTTPS only). Turn off only to try it over plain http.")] = True,
           config: ConfigOpt = None, set_: SetOpt = None) -> None:
-    """Run the web app. Local mode binds to loopback only; --mode demo is the public, sample-data-only variant."""
-    if mode not in ("local", "demo"):
-        raise err("--mode must be local or demo", 2)
+    """Run the web app. local = one person on loopback; team = hosted for a team (needs --auth); demo = public, sample data only."""
+    import os
+
+    if mode not in ("local", "demo", "team"):
+        raise err("--mode must be local, team or demo", 2)
     if mode == "local" and host not in ("127.0.0.1", "localhost", "::1"):
-        raise err("local mode can deploy and run pipelines, so it only binds to loopback. "
-                  "To share it publicly use --mode demo (sample data, read-only).", 2)
+        raise err("local mode can deploy and run pipelines and has no sign-in, so it only binds to loopback. "
+                  "To host it for a team use --mode team (needs --auth); to share it publicly use --mode demo (sample data, read-only).", 2)
+    password, proxy_secret = os.environ.get("OPSLENS_TEAM_PASSWORD"), os.environ.get("OPSLENS_PROXY_SECRET")
+    if mode != "team" and auth:
+        raise err("--auth only applies to --mode team", 2)
     try:
         import uvicorn
 
-        from .web.app import create_app
+        from .web.app import create_app, team_settings_problems
     except ImportError as e:
         raise err("the web app needs extra packages: pip install 'opslens[web]'") from e
+    if mode == "team":
+        problems = team_settings_problems(auth=auth, password=password, proxy_secret=proxy_secret, allow_hosts=tuple(allow_host or ()))
+        if problems:
+            raise err("team mode will not start without sign-in:\n  - " + "\n  - ".join(problems), 2)
     cfg, _ = load(config, set_)
-    web = create_app(cfg, mode=mode, workspace=workspace, allow_hosts=tuple(allow_host or ()), trust_proxy=trust_proxy)
-    console.print(f"opslens app ({mode}) on [bold]http://{host}:{port}[/bold]")
-    uvicorn.run(web, host=host, port=port, log_level="warning")
+    web = create_app(cfg, mode=mode, workspace=workspace, allow_hosts=tuple(allow_host or ()), trust_proxy=trust_proxy,
+                     auth=auth, password=password, proxy_secret=proxy_secret, auth_header=auth_header, secure_cookies=secure_cookies,
+                     session_secret=os.environ.get("OPSLENS_SESSION_SECRET") or None)
+    console.print(f"opslens app ({mode}{f', auth {auth}' if mode == 'team' else ''}) on [bold]http://{host}:{port}[/bold]")
+    uvicorn.run(web, host=host, port=port, log_level="warning", proxy_headers=trust_proxy, forwarded_allow_ips="*" if trust_proxy else None)
 
 
 def _entry() -> Any:  # pragma: no cover

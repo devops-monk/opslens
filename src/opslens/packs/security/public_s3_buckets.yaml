@@ -1,0 +1,43 @@
+# Pack: security / public-s3-buckets
+# Finds buckets whose policy is public or that do not block public policies, tickets each, and (after approval) turns on
+# all four S3 public-access blocks. Only the access block changes; objects and policies are untouched.
+name: public_s3_buckets
+title: Block public access on S3 buckets
+description: Finds S3 buckets that are public or do not block public policies, opens a Jira ticket for each, and blocks public access after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select name, region, account_id, bucket_policy_is_public, block_public_policy
+    from aws_s3_bucket
+    where bucket_policy_is_public = true or block_public_policy = false
+notify: true
+approval:
+  prompt: Turn on public-access blocking for these buckets?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "S3 bucket {name} is publicly accessible"
+      description: "Bucket {name} in account {account_id} / {region} has a public policy or does not block public policies."
+  - pipeline: aws.put_s3_bucket_public_access_block
+    title: Block public access
+    gated: true
+    args:
+      region: "{region}"
+      bucket: "{name}"
+      block_public_acls: "true"
+      ignore_public_acls: "true"
+      block_public_policy: "true"
+      restrict_public_buckets: "true"

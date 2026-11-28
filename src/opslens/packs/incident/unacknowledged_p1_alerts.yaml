@@ -1,0 +1,42 @@
+# Pack: incident / unacknowledged-p1-alerts
+# Open Opsgenie alerts of priority P1 or P2 that nobody has acknowledged. Pings Teams and opens a Jira ticket so it is tracked.
+name: unacknowledged_critical_alerts
+title: Unacknowledged P1 and P2 alerts
+description: Finds open, unacknowledged Opsgenie alerts of priority P1 or P2, posts to Teams, and opens a Jira ticket for each.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 20
+  sql: |
+    select alert_id, message, priority, source, created_at
+    from opsgenie_alert
+    where status = 'open' and acknowledged = false and priority in ('P1', 'P2')
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Page the channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "[{priority}] {message} from {source} has not been acknowledged (alert {alert_id})."
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "[{priority}] {message}"
+      description: "Opsgenie alert {alert_id} from {source}, opened {created_at}, is still unacknowledged."

@@ -1,0 +1,38 @@
+# Pack: finops-cleanup / old-snapshots
+# EBS snapshots older than 90 days are usually forgotten backups. Tickets each one, then deletes after approval.
+name: old_ebs_snapshot_cleanup
+title: Delete EBS snapshots older than 90 days
+description: Finds EBS snapshots older than 90 days, opens a Jira ticket for each, and deletes them after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 50
+  sql: |
+    select snapshot_id, region, account_id, volume_size, start_time
+    from aws_ebs_snapshot
+    where start_time < now() - interval '90 days'
+notify: true
+approval:
+  prompt: Delete these old snapshots?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Old EBS snapshot {snapshot_id} ({volume_size} GiB) in {region}"
+      description: "Snapshot {snapshot_id} in account {account_id} / {region} was taken {start_time} and is older than 90 days."
+  - pipeline: aws.delete_ebs_snapshot
+    title: Delete the snapshot
+    gated: true
+    args:
+      region: "{region}"
+      snapshot_id: "{snapshot_id}"

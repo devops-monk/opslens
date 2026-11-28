@@ -1,0 +1,42 @@
+# Pack: governance / expiring-certificates
+# Expired certificates cause outages. Finds ACM certificates that expire within 30 days, tickets each, and warns the team.
+name: acm_expiring_certificates
+title: ACM certificates expiring soon
+description: Finds issued ACM certificates expiring within 30 days, opens a Jira ticket for each, and posts to Teams.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 30
+  sql: |
+    select domain_name, certificate_arn, region, account_id, not_after
+    from aws_acm_certificate
+    where status = 'ISSUED' and not_after < now() + interval '30 days'
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Certificate for {domain_name} expires {not_after}"
+      description: "ACM certificate {certificate_arn} for {domain_name} in account {account_id} / {region} expires {not_after}."
+  - pipeline: teams.send_channel_message
+    title: Warn the team
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "The certificate for {domain_name} expires {not_after}. A ticket was opened."

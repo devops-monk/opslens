@@ -1,0 +1,21 @@
+# Pack: engineering / stale-jira-issues
+# Open Jira issues nobody touched for 30 days get a polite comment asking for an update. Additive: comments only.
+name: stale_jira_issues
+title: Ask for updates on stale Jira issues
+description: Finds open Jira issues with no update for 30 days and adds a comment asking for a status.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 25
+  sql: |
+    select key, summary, assignee_display_name, updated
+    from jira_issue
+    where status_category <> 'Done' and updated < now() - interval '30 days'
+notify: true
+actions:
+  - pipeline: jira.add_comment
+    title: Ask for an update
+    args:
+      issue_id: "{key}"
+      comment_text: "This issue has had no update since {updated}. Is it still relevant? Please add a status or close it."

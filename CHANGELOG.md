@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.0 (2026-11-28)
+
+- **Team mode** (`opslens serve --mode team`): host the full web app for a team. It refuses to start without sign-in and a
+  `--allow-host`. Sign in with a shared password (`OPSLENS_TEAM_PASSWORD`, signed `HttpOnly`/`SameSite=Strict`/`Secure` session
+  cookie, rate-limited) or through an identity proxy (`--auth proxy`, shared secret so identity headers cannot be forged). The audit
+  log records who deployed, ran and approved. `/healthz` for health checks. Local mode still binds loopback only; demo is unchanged.
+- **`deploy/team/`**: Docker Compose stack (opslens + Caddy with automatic HTTPS), `.env.example` and a hosting guide in the docs.
+- Fix: a recycled process id after a container or machine restart could be mistaken for a running Flowpipe server (blocking a deploy) or,
+  worse, be sent a kill signal on undeploy. A server now counts as running only when Flowpipe answers on its recorded port.
+
+- **28 new templates (32 in total)**, in six categories. Every one validates, renders, and finds rows on the built-in sample data.
+  - Cost: unattached Elastic IPs, old EBS snapshots, gp2 to gp3, stop dev and staging instances, non-production NAT gateways.
+  - Governance: S3 cost-center tags, deprecated Lambda runtimes, IAM users without MFA, KMS key rotation, expiring ACM certificates.
+  - Security: public S3 buckets, SSH/RDP open to the world, stale IAM access keys, RDS public or unencrypted, RDS without backups, unencrypted snapshots.
+  - Incident: CloudWatch alarms to Teams, unacknowledged P1/P2 alerts, failed GitLab deployments, Opsgenie alert to Jira.
+  - ChatOps: daily ops digest, new IAM access keys, public GitLab projects, new S3 files to Teams.
+  - Engineering: stale merge requests, inactive GitLab projects, stale and overdue Jira issues.
+  Anything that deletes, stops, revokes or modifies asks for approval first; the rest never changes anything.
+- Sample data covers 15 more tables so every template can be tried with no account.
+- The web app gallery sorts and filters by the new categories; the Templates docs page is grouped by category with an overview table.
+
 ## 0.2.1 (2026-11-28)
 
 A redesigned web app, website and docs. No change to specs, rendering or safety behaviour.

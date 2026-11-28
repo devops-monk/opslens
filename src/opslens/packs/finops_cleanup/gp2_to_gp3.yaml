@@ -1,0 +1,30 @@
+# Pack: finops-cleanup / gp2-to-gp3
+# gp3 volumes are cheaper than gp2 and faster at the baseline. Files one ticket per gp2 volume. Reads and notifies only.
+name: gp2_volume_migration
+title: Migrate gp2 volumes to gp3
+description: Finds gp2 EBS volumes and opens a Jira ticket for each, asking the owner to move them to gp3.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 50
+  sql: |
+    select volume_id, region, account_id, size, state
+    from aws_ebs_volume
+    where volume_type = 'gp2'
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Migrate gp2 volume {volume_id} ({size} GiB) to gp3"
+      description: "Volume {volume_id} in account {account_id} / {region} ({state}) is gp2. gp3 is cheaper and needs no downtime to switch."

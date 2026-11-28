@@ -1,0 +1,42 @@
+# Pack: security / open-ssh-to-world
+# Finds security-group rules that open SSH (22) or RDP (3389) to the whole internet, tickets each, and (after approval)
+# revokes that one rule. Other rules in the group are untouched.
+name: remote_access_open_to_world
+title: Close SSH and RDP open to the internet
+description: Finds security-group rules that allow SSH or RDP from 0.0.0.0/0, opens a Jira ticket for each, and revokes the rule after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select security_group_rule_id, group_id, region, account_id, from_port, description
+    from aws_vpc_security_group_rule
+    where is_egress = false
+      and cidr_ipv4 = '0.0.0.0/0'
+      and from_port in (22, 3389)
+notify: true
+approval:
+  prompt: Revoke these rules?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Port {from_port} open to the world on {group_id}"
+      description: "Rule {security_group_rule_id} ({description}) on {group_id} in account {account_id} / {region} allows port {from_port} from 0.0.0.0/0."
+  - pipeline: aws.revoke_vpc_security_group_ingress
+    title: Revoke the rule
+    gated: true
+    args:
+      region: "{region}"
+      security_group_id: "{group_id}"
+      security_group_rule_id: "{security_group_rule_id}"

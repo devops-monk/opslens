@@ -1,0 +1,38 @@
+# Pack: finops-cleanup / nonprod-nightly-stop
+# Stops running instances tagged Environment=dev or staging. Run it in the evening; it asks before stopping anything.
+name: nonprod_instance_stop
+title: Stop dev and staging instances
+description: Finds running EC2 instances tagged Environment dev or staging, tells the team, and stops them after approval.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select instance_id, instance_type, region, account_id, tags ->> 'Environment' as environment
+    from aws_ec2_instance
+    where instance_state = 'running'
+      and tags ->> 'Environment' in ('dev', 'staging')
+notify: true
+approval:
+  prompt: Stop these non-production instances?
+actions:
+  - pipeline: teams.send_channel_message
+    title: Tell the team
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "Stopping {environment} instance {instance_id} ({instance_type}) in {region} tonight unless someone objects."
+  - pipeline: aws.stop_ec2_instances
+    title: Stop the instance
+    gated: true
+    args:
+      region: "{region}"
+      instance_ids: "{instance_id}"

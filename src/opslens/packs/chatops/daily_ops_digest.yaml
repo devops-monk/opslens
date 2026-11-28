@@ -1,0 +1,32 @@
+# Pack: chatops / daily-ops-digest
+# One message each morning with the numbers a team wants at a glance: running instances, unattached volumes and open alerts.
+# The query returns a single row, so exactly one Teams message is sent. Reads and notifies only.
+name: daily_ops_digest
+title: Daily ops digest in Teams
+description: Posts one Teams message each day with running instances, unattached volumes, public buckets and open alerts.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 1
+  sql: |
+    select
+      (select count(*) from aws_ec2_instance where instance_state = 'running') as running_instances,
+      (select count(*) from aws_ebs_volume where state = 'available') as unattached_volumes,
+      (select count(*) from aws_s3_bucket where bucket_policy_is_public = true) as public_buckets,
+      (select count(*) from opsgenie_alert where status = 'open') as open_alerts
+notify: false
+actions:
+  - pipeline: teams.send_channel_message
+    title: Post the digest
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "Daily ops digest: {running_instances} running instances, {unattached_volumes} unattached volumes, {public_buckets} public buckets, {open_alerts} open alerts."

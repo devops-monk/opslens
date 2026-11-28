@@ -1,0 +1,30 @@
+# Pack: governance / lambda-runtime-deprecation
+# Lambda functions on end-of-life runtimes stop receiving security patches. Files a ticket per function. Reads and notifies only.
+name: lambda_deprecated_runtimes
+title: Upgrade Lambda functions on old runtimes
+description: Finds Lambda functions on end-of-life runtimes and opens a Jira ticket for each asking the owner to upgrade.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 50
+  sql: |
+    select name, runtime, region, account_id, last_modified
+    from aws_lambda_function
+    where runtime in ('python3.6', 'python3.7', 'python3.8', 'nodejs12.x', 'nodejs14.x', 'nodejs16.x', 'dotnetcore3.1', 'ruby2.7')
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Upgrade Lambda {name} from {runtime}"
+      description: "Function {name} in account {account_id} / {region} runs {runtime}, which is end of life. Last modified {last_modified}."

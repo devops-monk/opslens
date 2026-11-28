@@ -41,6 +41,7 @@ ICONS = {
     "book": '<path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 5v16M8 7h7"/>',
     "play": '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z"/>',
     "download": '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
+    "users": '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3.2 3.2 0 010 5.6M18 14.3c1.8.7 3 2.4 3 4.7"/>',
     "box": '<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9"/>',
     "sliders": '<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4"/>',
     "layout": '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M9 9v11"/>',
@@ -73,7 +74,7 @@ ICON_SVG = {k: Markup(f'<svg {_G} aria-hidden="true">{v}</svg>') for k, v in ICO
 # ---------------------------------------------------------------- docs structure
 NAV = [
     ("Get started", [("", "Introduction"), ("install", "Install"), ("quickstart", "Quick start"),
-                     ("ways-to-run", "Ways to run"), ("configuration", "Configuration")]),
+                     ("ways-to-run", "Ways to run"), ("hosting", "Host it for your team"), ("configuration", "Configuration")]),
     ("Build automations", [("app", "The web app"), ("use-cases", "Use cases"), ("packs", "Templates"),
                            ("spec", "The spec format"), ("find", "Find tables and actions"), ("preview", "Preview and test"),
                            ("deploy", "Deploy, approve, audit"), ("ai", "AI planner")]),
@@ -86,6 +87,7 @@ DOC_INFO = {
     "install": ("download", "One command for macOS and Linux, or pip, Docker and source."),
     "quickstart": ("play", "Five minutes on sample data: find, install a template, read it, preview it."),
     "ways-to-run": ("box", "Installer, hosted demo, local app, CLI, Docker and CI."),
+    "hosting": ("users", "Run the full app for a team behind HTTPS, with sign-in and an audit trail."),
     "configuration": ("sliders", "Every setting, where it comes from, and its environment variable."),
     "app": ("layout", "The visual builder: templates, the flow, testing, YAML, and the demo."),
     "use-cases": ("grid", "Four real automations end to end, and how to build your own."),
@@ -110,21 +112,37 @@ REPO_DOCS = {"safety": "safety.md"}
 def packs_md() -> str:
     from opslens import packs
 
+    labels = {"finops-cleanup": "Cost", "governance": "Governance", "security": "Security", "incident": "Incident response",
+              "chatops": "ChatOps", "engineering": "Engineering"}
     pc = pcat.load()
+    rows = packs.list_packs()
     out = ["# Templates",
-           "Ready-made automations that work with no AI. Each is a small [spec](../spec/) you can read, test, change and deploy. "
-           "Open one in the [app](../../app/), or install it with `opslens pack install <name>`.", ""]
-    for row in packs.list_packs():
-        s = packs.get(row["pack"])
-        when = f"on a schedule ({s.trigger.schedule})" if s.trigger.kind == "schedule" else "on demand"
-        out += [f"## {s.title}", f"`{row['pack']}` · runs {when} · [Open in the app](../../app/?pack={row['pack']})", "", s.description, ""]
-        out += ["| step | action | effect | when |", "|---|---|---|---|"]
-        for i, a in enumerate(s.actions, 1):
-            p = pc.get(a.pipeline)
-            out.append(f"| {i}. {a.title or a.pipeline} | `{a.pipeline}` | {p.effect if p else '?'} | "
-                       f"{'after approval' if a.gated else 'automatic'} |")
-        out += ["", f"Variables: {', '.join(f'`{k}`' for k in s.variables) or 'none'}.", "",
-                "```bash", f"opslens pack install {row['pack']}", "```", "", "```yaml", s.to_yaml().rstrip(), "```", ""]
+           f"{len(rows)} ready-made automations that work with no AI. Each is a small [spec](../spec/) you can read, test, change and deploy. "
+           "Open one in the [app](../../app/), or install it with `opslens pack install <name>`. "
+           "Everything here previews on the built-in sample data with no account.", "",
+           "| template | what it does | asks before changing things |", "|---|---|---|"]
+    specs = {r["pack"]: packs.get(r["pack"]) for r in rows}
+    for r in rows:
+        s = specs[r["pack"]]
+        out.append(f"| [{s.title}](#{re.sub(r'[^a-z0-9]+', '-', s.title.lower()).strip('-')}) | {s.description} | {'yes' if s.gated_actions() else 'no, it never changes anything'} |")
+    out.append("")
+    for cat, label in labels.items():
+        mine = [r for r in rows if r["pack"].split("/")[0] == cat]
+        if not mine:
+            continue
+        out += [f"## {label}", ""]
+        for row in mine:
+            s = specs[row["pack"]]
+            when = f"on a schedule ({s.trigger.schedule})" if s.trigger.kind == "schedule" else "on demand"
+            out += [f"### {s.title}", f"`{row['pack']}` · runs {when} · [Open in the app](../../app/?pack={row['pack']})", "", s.description, ""]
+            out += ["| step | action | effect | when |", "|---|---|---|---|"]
+            for i, a in enumerate(s.actions, 1):
+                p = pc.get(a.pipeline)
+                out.append(f"| {i}. {a.title or a.pipeline} | `{a.pipeline}` | {p.effect if p else '?'} | "
+                           f"{'after approval' if a.gated else 'automatic'} |")
+            out += ["", f"Variables: {', '.join(f'`{k}`' for k in s.variables) or 'none'}.", "",
+                    "```bash", f"opslens pack install {row['pack']}", "```", "", "<details markdown=\"1\"><summary>The spec</summary>", "",
+                    "```yaml", s.to_yaml().rstrip(), "```", "", "</details>", ""]
     return "\n".join(out)
 
 
@@ -214,7 +232,7 @@ def _img_size(rel: str) -> tuple[int, int] | None:
 
 def render_md(text: str, root: str, slug: str) -> tuple[str, str, str, str]:
     """-> (body html, h1, toc html, lead html). Figures for images, absolute-ish asset paths, index-page link fix."""
-    md = markdown.Markdown(extensions=["fenced_code", "tables", "toc", "attr_list"], extension_configs={"toc": {"toc_depth": "2-3"}})
+    md = markdown.Markdown(extensions=["fenced_code", "tables", "toc", "attr_list", "md_in_html"], extension_configs={"toc": {"toc_depth": "2-3"}})
     html = md.convert(text)
     toc = _toc_html(md.toc_tokens)
     m = re.match(r"\s*<h1[^>]*>(.*?)</h1>\s*", html, re.DOTALL)
@@ -260,7 +278,7 @@ def export_data() -> dict:
     for name, obj in (("tables", t), ("pipelines", p), ("config", cfg)):
         (out / f"{name}.json").write_text(json.dumps(obj, separators=(",", ":")))
     return {"tables": len(t), "columns": sum(len(x["c"]) for x in t), "pipelines": len(p),
-            "mods": len(pc.mods), "plugins": len(tc.plugins)}
+            "mods": len(pc.mods), "plugins": len(tc.plugins), "templates": len(__import__("opslens.packs", fromlist=["x"]).list_packs())}
 
 
 def doc_sources() -> dict[str, str]:

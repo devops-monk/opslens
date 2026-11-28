@@ -15,6 +15,13 @@ docker run --rm --network none abhaypratap/opslens query --source demo "select v
 docker run --rm -p 8077:8077 abhaypratap/opslens serve --mode demo --host 0.0.0.0 --allow-host localhost
 ```
 
+## Host the full app for a team
+
+The image can run the whole app (build, test on live data, deploy, approve) for a team, with sign-in. Use the Compose stack in
+[`deploy/team`](https://github.com/devops-monk/opslens/tree/main/deploy/team) (opslens + Caddy for automatic HTTPS) and read the
+[hosting guide](https://opslens.devops-monk.com/docs/hosting/). `serve --mode team` refuses to start without
+`OPSLENS_TEAM_PASSWORD` (or an identity proxy) and `--allow-host`.
+
 ## Use it on your own account
 
 ```bash

@@ -1,0 +1,31 @@
+# Pack: finops-cleanup / nat-gateway-review
+# NAT gateways bill by the hour. Lists the ones outside production so someone confirms they are still needed.
+name: nat_gateway_review
+title: Review non-production NAT gateways
+description: Finds NAT gateways not tagged as production and opens a Jira ticket for each, asking if it is still needed.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 30
+  sql: |
+    select nat_gateway_id, region, account_id, vpc_id, create_time
+    from aws_vpc_nat_gateway
+    where state = 'available'
+      and coalesce(tags ->> 'Environment', '') <> 'prod'
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Is NAT gateway {nat_gateway_id} still needed?"
+      description: "NAT gateway {nat_gateway_id} in {region} (vpc {vpc_id}, account {account_id}) was created {create_time} and is not tagged Environment=prod."

@@ -92,7 +92,7 @@ opslens uses whatever credentials the Steampipe plugins already use (your AWS pr
 | `pack list\|show\|install` | Curated automations; `install` renders a Flowpipe mod you can read and review |
 | `validate <mod>` / `preview <mod>` | Safety + catalog checks and Flowpipe's own parser / what a run would do right now (reads only) |
 | `render <spec.yaml>` | Spec to Flowpipe mod |
-| `serve [--mode demo]` | The web app: Find, Build, Mods. Local mode is loopback-only; demo mode is public-safe |
+| `serve [--mode local\|team\|demo]` | The web app. Local is loopback-only; **team** hosts the full app for a team behind HTTPS with sign-in ([guide](https://opslens.devops-monk.com/docs/hosting/)); demo is public-safe (sample data) |
 | `generate "<requirement>"` / `explain <mod>` | AI drafts a validated spec (Anthropic, OpenAI, GLM, OpenRouter, Ollama, any OpenAI-compatible server, LiteLLM); `explain` reads a spec in plain English, no AI |
 | `deploy <mod> --approve <hash>` / `run` / `approve` / `runs` / `undeploy` | Start the mod's Flowpipe server (only for the spec hash you reviewed), run it, answer approvals, read the audit log |
 | `catalog stats` / `catalog verify` | What ships / compare with installed plugins |
@@ -122,10 +122,10 @@ talks to them over a database connection and HTTP. It does not link to them or v
 |---|---|---|
 | 0 | Spike: validation and REST run flow confirmed ([findings](docs/phase0-findings.md)) | done |
 | 1 | Catalogs, guard, no-AI CLI, packaging | **this release** |
-| 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log, four packs: **built** | **done** |
+| 2 | Mod spec, renderer, validator + preview, deploy, run tracking, audit log, 32 packs: **built** | **done** |
 | 3 | AI planner (any LLM provider), `generate`, `explain`: **built, mocked-tested; live eval set ready** | **done, pending live eval** |
 | 4 | Web UI: find, build, preview, deploy, approve, audit (`opslens serve`): **built**; public demo live at opslens.devops-monk.com/app/ | **done** |
-| 5 | More packs, incident-copilot, docs site, Docker image, examples: **built** | **done (v0.2.1)** |
+| 5 | More packs, incident-copilot, docs site, Docker image, examples: **built** | **done (v0.3.0)** |
 
 ## Development
 

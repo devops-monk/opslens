@@ -1,8 +1,11 @@
 """The opslens web app (`opslens serve`): the same engine as the CLI behind a small JSON API and a single-page UI.
 
-Two modes:
+Three modes:
   local  (default) bound to 127.0.0.1 for one person. Full workflow: search, build, validate, preview (demo or live),
          generate with AI, save, deploy (only the spec hash you reviewed), run, approve, audit log.
+  team   the same full workflow, hosted for a team behind HTTPS. It will not start without authentication: either a
+         shared password (a signed session cookie) or an identity proxy (SSO) that vouches for each request. The
+         audit log records who deployed, ran and approved.
   demo   safe to expose publicly: bundled sample data only, no AI, no files written, nothing deployed or run, input
          size limits and a per-client rate limit. Nothing here can reach a cloud account.
 
@@ -12,18 +15,22 @@ Protections: a Host-header allow-list (blocks DNS rebinding), a per-process toke
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import re
 import secrets
 import time
 from collections import defaultdict, deque
+from contextvars import ContextVar
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 import yaml
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -40,6 +47,11 @@ from ..validate.preview import preview
 
 STATIC = Path(__file__).parent / "static"
 MAX_YAML, MAX_SQL, MAX_ASK = 20_000, 5_000, 1_000
+SESSION_HOURS = 12
+COOKIE = "opslens_session"
+MIN_PASSWORD, MIN_PROXY_SECRET = 12, 16
+USER_RE = re.compile(r"^[\w .@'+-]{1,60}$")
+actor_var: ContextVar[str | None] = ContextVar("opslens_actor", default=None)  # who is making this request (audit log)
 
 
 class Yaml(BaseModel):
@@ -74,6 +86,11 @@ class Answer(BaseModel):
     choice: str
 
 
+class Login(BaseModel):
+    user: str = Field("", max_length=60)
+    password: str = Field(max_length=200)
+
+
 def clean(obj: Any) -> Any:
     """JSON-safe copy (live rows hold datetimes, decimals, ...)."""
     return json.loads(json.dumps(obj, default=str))
@@ -93,15 +110,67 @@ class Limiter:
         return True
 
 
+def team_settings_problems(*, auth: str | None, password: str | None, proxy_secret: str | None, allow_hosts: tuple[str, ...]) -> list[str]:
+    """Why team mode must refuse to start (empty list = fine). One place, used by the CLI and by create_app."""
+    out = []
+    if auth not in ("password", "proxy"):
+        out.append("team mode needs --auth password (shared password) or --auth proxy (an identity proxy such as oauth2-proxy)")
+    if auth == "password" and len(password or "") < MIN_PASSWORD:
+        out.append(f"set OPSLENS_TEAM_PASSWORD to at least {MIN_PASSWORD} characters")
+    if auth == "proxy" and len(proxy_secret or "") < MIN_PROXY_SECRET:
+        out.append(f"set OPSLENS_PROXY_SECRET to at least {MIN_PROXY_SECRET} characters; your proxy must send it as X-Opslens-Proxy-Secret")
+    if not allow_hosts:
+        out.append("pass --allow-host <the public host name> (the Host-header allow-list blocks DNS rebinding)")
+    return out
+
+
 def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = None, allow_hosts: tuple[str, ...] = (),
-               trust_proxy: bool = False, rate_per_minute: int = 120, token: str | None = None) -> FastAPI:
-    assert mode in ("local", "demo")
-    demo = mode == "demo"
+               trust_proxy: bool = False, rate_per_minute: int = 120, token: str | None = None,
+               auth: str | None = None, password: str | None = None, proxy_secret: str | None = None,
+               auth_header: str = "X-Forwarded-Email", secure_cookies: bool = True, session_secret: str | None = None) -> FastAPI:
+    assert mode in ("local", "demo", "team")
+    demo, team = mode == "demo", mode == "team"
+    if team and (problems := team_settings_problems(auth=auth, password=password, proxy_secret=proxy_secret, allow_hosts=allow_hosts)):
+        raise ValueError("; ".join(problems))
+    key = (session_secret or secrets.token_urlsafe(32)).encode()
+    login_limiter = Limiter(10)
     ws = (workspace or Path(cfg.flowpipe.workspace_dir)).resolve()
     tok = token or secrets.token_urlsafe(24)
     hosts = {"localhost", "127.0.0.1", "[::1]", "testserver", *allow_hosts}
     limiter = Limiter(rate_per_minute)
     app = FastAPI(title="opslens", version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
+
+    def sign(payload: str) -> str:
+        return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+
+    def make_session(user: str) -> str:
+        body = base64.urlsafe_b64encode(json.dumps({"u": user, "e": int(time.time()) + SESSION_HOURS * 3600}).encode()).decode()
+        return f"{body}.{sign(body)}"
+
+    def read_session(value: str | None) -> str | None:
+        try:
+            body, mac = (value or "").rsplit(".", 1)
+            if not hmac.compare_digest(mac, sign(body)):
+                return None
+            data = json.loads(base64.urlsafe_b64decode(body.encode()))
+            return str(data["u"]) if data["e"] > time.time() else None
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    def who(request: Request) -> str | None:
+        """The signed-in user's name in team mode, or None when this request is not authenticated."""
+        if not team:
+            return "local"
+        if auth == "password":
+            return read_session(request.cookies.get(COOKIE))
+        if not hmac.compare_digest(request.headers.get("x-opslens-proxy-secret", ""), proxy_secret or ""):
+            return None  # the request did not come through our proxy: ignore any identity header it carries
+        name = request.headers.get(auth_header, "").strip()
+        return name[:120] if name and name.isprintable() else None
+
+    def client_of(request: Request) -> str:
+        return (request.headers.get("x-forwarded-for", "").split(",")[0].strip() if trust_proxy else "") or \
+            (request.client.host if request.client else "?")
 
     @app.middleware("http")
     async def guard_requests(request: Request, call_next):
@@ -109,14 +178,23 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
             else (request.headers.get("host") or "").split("]")[0] + "]"
         if host not in hosts:
             return JSONResponse({"detail": "host not allowed"}, status_code=400)
-        if request.url.path.startswith("/api/"):
-            who = (request.headers.get("x-forwarded-for", "").split(",")[0].strip() if trust_proxy else "") or \
-                (request.client.host if request.client else "?")
-            if demo and not limiter.ok(who):
-                return JSONResponse({"detail": "slow down: too many requests"}, status_code=429)
+        path = request.url.path
+        if path.startswith("/api/") and demo and not limiter.ok(client_of(request)):
+            return JSONResponse({"detail": "slow down: too many requests"}, status_code=429)
+        if team:
+            user = who(request)
+            if user is None and not (path in ("/login", "/healthz", "/api/login") or path.startswith("/static/")):
+                if path.startswith("/api/"):
+                    return JSONResponse({"detail": "sign in required"}, status_code=401)
+                if auth == "password":
+                    return RedirectResponse("login", status_code=303)
+                return JSONResponse({"detail": "not signed in: the identity proxy did not vouch for this request"}, status_code=401)
+            actor_var.set(user)
         resp = await call_next(request)
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["Referrer-Policy"] = "no-referrer"
+        if team and path.startswith("/api/"):
+            resp.headers["Cache-Control"] = "no-store"
         resp.headers["Content-Security-Policy"] = ("default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; "
                                                    "img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
         return resp
@@ -150,10 +228,37 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         return parse(body.yaml)
 
     # ---------------------------------------------------------------- meta + catalog
+    @app.get("/healthz")
+    def healthz() -> dict[str, Any]:
+        return {"ok": True, "version": __version__}
+
+    @app.post("/api/login")
+    def login(body: Login, request: Request) -> JSONResponse:
+        if not team or auth != "password":
+            raise HTTPException(404, "not found")
+        if not login_limiter.ok(client_of(request)):
+            raise HTTPException(429, "too many sign-in attempts: wait a minute")
+        name = body.user.strip() or "team"
+        if not USER_RE.match(name):
+            raise HTTPException(422, "name may use letters, digits, spaces and . @ ' + -")
+        if not hmac.compare_digest(body.password.encode(), (password or "").encode()):
+            time.sleep(0.4)  # slows guessing a little; the limiter above is the real brake
+            raise HTTPException(401, "wrong password")
+        resp = JSONResponse({"user": name})
+        resp.set_cookie(COOKIE, make_session(name), max_age=SESSION_HOURS * 3600, httponly=True, samesite="strict",
+                        secure=secure_cookies, path="/")
+        return resp
+
+    @app.post("/api/logout")
+    def logout() -> JSONResponse:
+        resp = JSONResponse({"ok": True})
+        resp.delete_cookie(COOKIE, path="/")
+        return resp
+
     @app.get("/api/meta")
-    def meta() -> dict[str, Any]:
+    def meta(request: Request) -> dict[str, Any]:
         tc, pc = tcat.load(), pcat.load()
-        return {"version": __version__, "mode": mode, "token": tok, "ai": (not demo and cfg.llm.provider != "none"),
+        return {"version": __version__, "mode": mode, "token": tok, "user": who(request) if team else None, "auth": auth if team else None, "ai": (not demo and cfg.llm.provider != "none"),
                 "provider": cfg.llm.provider, "tables": len(tc.tables), "pipelines": len(pc.pipelines),
                 "live": not demo, "limits": {"yaml": MAX_YAML, "sql": MAX_SQL, "ask": MAX_ASK}}
 
@@ -340,7 +445,7 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         from ..flowpipe import server
 
         st = server.read_state(d)
-        return st if st and server.alive(st["pid"]) else None
+        return st if server.is_running(st) else None
 
     @app.get("/api/mods/{name}", dependencies=[Depends(local_only)])
     def get_mod(name: str) -> dict[str, Any]:
@@ -382,7 +487,7 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
             Flowpipe(f"http://localhost:{st['port']}").wait_for_pipeline(f"{spec.name}.pipeline.{spec.name}", timeout_s=60)
         except FlowpipeError as e:
             raise HTTPException(502, str(e)) from e
-        Audit(ws).log("deploy", spec.name, h, f"port {st['port']} via web")
+        Audit(ws).log("deploy", spec.name, h, f"port {st['port']} via web", actor=actor_var.get())
         return {"port": st["port"], "hash": h}
 
     @app.post("/api/mods/{name}/undeploy", dependencies=[Depends(local_only)])
@@ -393,7 +498,7 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         d = mod_dir(name)
         if not server.stop(d):
             raise HTTPException(409, "not deployed")
-        Audit(ws).log("undeploy", name)
+        Audit(ws).log("undeploy", name, actor=actor_var.get())
         return {"ok": True}
 
     def fp_for(name: str):
@@ -413,7 +518,7 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
         _, st, fp = fp_for(name)
         try:
             eid = fp.run(f"{name}.pipeline.{name}")
-            Audit(ws).log("run", name, st["spec_hash"], f"{eid} via web")
+            Audit(ws).log("run", name, st["spec_hash"], f"{eid} via web", actor=actor_var.get())
             s = fp.wait(eid, timeout_s=90)
         except FlowpipeError as e:
             raise HTTPException(502, str(e)) from e
@@ -442,7 +547,7 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
             if s.status != "waiting" or not s.approval_url or not s.waiting_on:
                 raise HTTPException(409, f"{body.execution} is not waiting for approval (status: {s.status})")
             fp.answer(s.approval_url, s.waiting_on, body.choice)
-            Audit(ws).log("approve", name, st["spec_hash"], f"{body.execution}: {body.choice} via web")
+            Audit(ws).log("approve", name, st["spec_hash"], f"{body.execution}: {body.choice} via web", actor=actor_var.get())
             s = fp.wait(body.execution, timeout_s=120, until_waiting=False)
         except FlowpipeError as e:
             raise HTTPException(502, str(e)) from e
@@ -459,6 +564,12 @@ def create_app(cfg: Config, *, mode: str = "local", workspace: Path | None = Non
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/login")
+    def login_page(request: Request) -> Any:
+        if not team or auth != "password" or who(request):
+            return RedirectResponse("./", status_code=303)
+        return FileResponse(STATIC / "login.html", headers={"Cache-Control": "no-store"})
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     return app

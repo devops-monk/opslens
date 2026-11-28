@@ -8,6 +8,8 @@
 #   docker run --rm -p 8077:8077 opslens serve --mode demo --host 0.0.0.0 --allow-host localhost   # the web app, sample data
 #   docker run --rm -e AWS_PROFILE=ops -v ~/.aws:/home/opslens/.aws:ro opslens query "select count(*) from aws_ebs_volume"
 #
+#   docker compose up -d   # in deploy/team: the full app for a team behind HTTPS with sign-in (docs/hosting)
+#
 # Multi-arch: docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/opslens:0.1.0 --push .
 
 ARG PYTHON_VERSION=3.13

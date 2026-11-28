@@ -1,0 +1,39 @@
+# Pack: governance / s3-cost-center-tags
+# S3 buckets without a cost_center tag cannot be charged back. Tickets each one, then tags it cost_center=unassigned after approval.
+name: s3_cost_center_tags
+title: Add cost-center tags to S3 buckets
+description: Finds S3 buckets with no cost_center tag, opens a Jira ticket for each, and tags them cost_center=unassigned after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select name, arn, region, account_id, creation_date
+    from aws_s3_bucket
+    where tags ->> 'cost_center' is null
+notify: true
+approval:
+  prompt: Tag these buckets cost_center=unassigned?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "S3 bucket {name} has no cost_center tag"
+      description: "Bucket {name} in account {account_id} / {region}, created {creation_date}, has no cost_center tag. Please assign one."
+  - pipeline: aws.tag_resources
+    title: Tag the bucket
+    gated: true
+    args:
+      region: "{region}"
+      resource_arns: "{arn}"
+      tags: "cost_center=unassigned"

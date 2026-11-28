@@ -1,0 +1,9 @@
+# HTTPS in front of opslens. Caddy fetches and renews the certificate for $OPSLENS_HOST on its own.
+{$OPSLENS_HOST} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy opslens:8077
+}

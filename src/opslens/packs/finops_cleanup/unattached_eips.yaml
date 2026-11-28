@@ -1,0 +1,38 @@
+# Pack: finops-cleanup / unattached-eips
+# Elastic IPs that are not associated with anything still cost money. Files a ticket for each, then (after approval) releases them.
+name: unattached_eip_cleanup
+title: Release unattached Elastic IPs
+description: Finds Elastic IPs that are not attached to anything, opens a Jira ticket for each, and releases them after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select allocation_id, public_ip, region, account_id
+    from aws_vpc_eip
+    where association_id is null
+notify: true
+approval:
+  prompt: Release these unattached Elastic IPs?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Unattached Elastic IP {public_ip} in {region}"
+      description: "Elastic IP {public_ip} ({allocation_id}) in account {account_id} / {region} is not associated with any resource and is being billed."
+  - pipeline: aws.release_eip
+    title: Release the Elastic IP
+    gated: true
+    args:
+      region: "{region}"
+      allocation_id: "{allocation_id}"

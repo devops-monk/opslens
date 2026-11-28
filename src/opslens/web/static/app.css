@@ -181,3 +181,16 @@ dialog::backdrop{background:rgba(10,10,30,.5)}
   .cols2{grid-template-columns:1fr} .title-in{order:-1;flex-basis:100%}
 }
 @media(max-width:640px){#getit{display:none}.top{gap:8px;padding:0 10px}.tabs{overflow:auto}.brand span{display:none}.badge{display:none}.page{padding:24px 14px 70px}}
+
+/* team mode: sign-in page and signed-in user chip */
+.login-body{display:grid;place-items:center;min-height:100vh;padding:20px}
+.login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:32px 28px;box-shadow:var(--shadow);text-align:center}
+.login-card .logo{color:var(--accent);margin:0 auto 10px;display:block}
+.login-card h1{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}
+.login-card form{text-align:left;margin-top:20px;display:grid;gap:6px}
+.login-card label{font-size:13px;font-weight:600;margin-top:8px}
+.login-card input{font:inherit;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface);color:var(--fg);width:100%}
+.login-card input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.login-card .btn{margin-top:14px;justify-content:center;width:100%}
+.login-err{color:var(--red);font-size:13.5px;margin:6px 0 0}
+.who{font-size:13px;color:var(--fg2);white-space:nowrap}

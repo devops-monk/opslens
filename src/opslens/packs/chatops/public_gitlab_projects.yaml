@@ -1,0 +1,29 @@
+# Pack: chatops / public-gitlab-projects
+# Public GitLab projects are visible to everyone. Tells Teams about each one so an owner can confirm it is intended.
+name: public_gitlab_projects
+title: Tell Teams about public GitLab projects
+description: Finds public GitLab projects and posts a Teams message for each so an owner can confirm it is intended.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 30
+  sql: |
+    select id, full_path, web_url, last_activity_at
+    from gitlab_project
+    where visibility = 'public'
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Tell the channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "GitLab project {full_path} is public ({web_url}). Last activity {last_activity_at}. Is that intended?"

@@ -1,0 +1,30 @@
+# Pack: incident / cloudwatch-alarms-to-teams
+# Posts every CloudWatch alarm that went into ALARM in the last 2 hours to a Teams channel. Reads and notifies only.
+name: cloudwatch_alarms_to_teams
+title: CloudWatch alarms to Teams
+description: Posts a Teams message for each CloudWatch alarm that entered the ALARM state in the last 2 hours.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 20
+  sql: |
+    select name, region, account_id, metric_name, state_reason, state_updated_timestamp
+    from aws_cloudwatch_alarm
+    where state_value = 'ALARM'
+      and state_updated_timestamp > now() - interval '2 hours'
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Post the alarm
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "ALARM {name} in {region} ({metric_name}): {state_reason}"

@@ -1,0 +1,43 @@
+# Pack: incident / failed-deployments
+# GitLab deployments that failed in the last 24 hours: tells Teams and opens a Jira ticket. The GitLab project id (42) is in
+# the SQL: edit it for your setup.
+name: failed_deployments
+title: Failed GitLab deployments
+description: Finds GitLab deployments that failed in the last 24 hours, posts to Teams, and opens a Jira ticket for each.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 20
+  sql: |
+    select id, ref, environment_name, sha, created_at
+    from gitlab_project_deployment
+    where project_id = '42' and status = 'failed' and created_at > now() - interval '24 hours'
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Tell the channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "Deployment {id} of {ref} to {environment_name} failed at {created_at}."
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Deployment of {ref} to {environment_name} failed"
+      description: "GitLab deployment {id} ({sha}) of {ref} to {environment_name} failed at {created_at}."

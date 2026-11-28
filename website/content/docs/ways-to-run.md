@@ -7,6 +7,7 @@ The same engine runs in several shapes. Pick the one that fits.
 | **Installer** | Your laptop or a jump box, with live data and deploys | `curl -fsSL https://opslens.devops-monk.com/install.sh \| sh` |
 | **Hosted demo** | A look around, no install | [opslens.devops-monk.com/app](../../app/) |
 | **Local web app** | The visual builder with your own data | `opslens serve` |
+| **Team server** | The full app for a team, behind HTTPS, with sign-in | `opslens serve --mode team` ([guide](../hosting/)) |
 | **CLI** | Scripts, CI, and people who live in a terminal | `opslens search`, `preview`, `deploy` |
 | **Docker** | Reproducible runs, CI, no local installs | `docker run abhaypratap/opslens ...` |
 

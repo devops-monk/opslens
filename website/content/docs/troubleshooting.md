@@ -47,7 +47,7 @@ Start with `opslens doctor`. It checks opslens, the catalogs, Flowpipe, Steampip
 
 ## The web app
 
-**"refusing to bind to a non-loopback address".** By design: the local app holds your credentials' reach. Use `--mode demo` to share a sandbox.
+**"refusing to bind to a non-loopback address".** By design: the local app holds your credentials' reach and has no sign-in. Use `--mode demo` to share a sandbox, or [team mode](../hosting/) to host the full app with sign-in.
 
 **The page says it cannot reach the API.** `opslens serve` isn't running, or you opened a different port. In a container, add `--host 0.0.0.0 --allow-host localhost`.
 
@@ -62,3 +62,9 @@ Start with `opslens doctor`. It checks opslens, the catalogs, Flowpipe, Steampip
 ## Still stuck
 
 Run `opslens doctor` and `opslens --version`, then [open an issue](https://github.com/devops-monk/opslens/issues) with the output and what you expected.
+
+**"team mode will not start without sign-in".** It needs `--auth password` with `OPSLENS_TEAM_PASSWORD` (12+ characters) or `--auth proxy` with `OPSLENS_PROXY_SECRET`, and `--allow-host <your host name>`. See [Host it for your team](../hosting/).
+
+**Signed in but everything says "host not allowed".** The host name in the browser is not in `--allow-host`. Use the exact name, without a port.
+
+**Automations stopped after a restart.** A deployed automation is a Flowpipe process; it ends with the container. Open *My automations* and deploy it again.

@@ -1,0 +1,30 @@
+# Pack: security / unencrypted-snapshots
+# Finds EBS snapshots that are not encrypted and files one ticket for each. Reads and notifies only.
+name: unencrypted_ebs_snapshots
+title: Unencrypted EBS snapshots
+description: Finds EBS snapshots that are not encrypted and opens a Jira ticket for each.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 50
+  sql: |
+    select snapshot_id, volume_id, region, account_id, start_time
+    from aws_ebs_snapshot
+    where encrypted = false
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Snapshot {snapshot_id} is not encrypted"
+      description: "Snapshot {snapshot_id} of volume {volume_id} in account {account_id} / {region}, taken {start_time}, is not encrypted."

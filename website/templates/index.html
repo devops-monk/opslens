@@ -54,10 +54,10 @@
   ['Search every action across five services and add it in two clicks', 'Insert values from each row into any field with one click', 'Red dots and plain messages show exactly what needs fixing', 'The whole flow is explained in plain English beside it'],
   'app', 'See the builder') }}
 {{ feature('f-templates', true, 'Templates', 'Start from something that works',
-  'Four ready-made automations for the jobs teams actually repeat: cutting waste, enforcing standards, filing security tickets and gathering incident context.',
-  'templates', 'The template gallery with four templates and a box to describe what you want',
-  ['Cost cleanup, tag compliance, GuardDuty to Jira, and an incident copilot', 'Open any of them, change a variable or a query, and test it', 'Describe your own in the box; with AI it drafts, without AI it searches'],
-  'use-cases', 'See the use cases') }}
+  stats.templates ~ ' ready-made automations for the jobs teams actually repeat: cutting waste, enforcing standards, closing security gaps, tracking incidents and keeping chat channels informed.',
+  'templates', 'The template gallery with category filters and a box to describe what you want',
+  ['Cost, governance, security, incident response, ChatOps and engineering', 'Open any of them, change a variable or a query, and test it on sample data', 'Describe your own in the box; with AI it drafts, without AI it searches'],
+  'packs', 'Browse all ' ~ stats.templates ~ ' templates') }}
 {{ feature('f-test', false, 'Test before anything runs', 'See exactly what would happen',
   'Press Test. opslens runs the read-only query and shows every row and the exact arguments each action would send, ending with how many changes were made: none.',
   'test', 'A test run showing rows, each action payload, and 0 changes made',
@@ -112,7 +112,7 @@
 </section>
 
 <section class="uc" id="use-cases">
-  <div class="head"><p class="eyebrow">Use cases</p><h2>Four jobs, ready to go</h2><p class="lede">Each is a template you can open, test on sample data and change. <a href="{{ root }}docs/use-cases/">Read the walkthroughs</a>.</p></div>
+  <div class="head"><p class="eyebrow">Use cases</p><h2>Jobs ready to go</h2><p class="lede">A few of the {{ stats.templates }} templates. Open one, test it on sample data and change it. <a href="{{ root }}docs/packs/">See them all</a> or <a href="{{ root }}docs/use-cases/">read the walkthroughs</a>.</p></div>
   <div class="uc-grid">
     <article class="uc-card"><div class="apps">{{ badge('aws', 'aws', 34) }}{{ badge('jira', 'Ji', 34) }}</div><h3>Clean up unattached EBS volumes</h3><p>Find volumes nobody uses, open a Jira ticket for each, and delete them only after you approve the list.</p><div class="flowline"><span class="tag">Every day</span><span class="tag change">Asks before deleting</span></div><a class="more" href="{{ root }}app/?pack=finops-cleanup/unattached-volumes">Open in the app {{ icon('arrow') }}</a></article>
     <article class="uc-card"><div class="apps">{{ badge('aws', 'aws', 34) }}{{ badge('jira', 'Ji', 34) }}</div><h3>Enforce owner tags on EC2</h3><p>Ticket every running instance with no Owner tag, then tag it <code>compliance=missing-owner</code> after approval.</p><div class="flowline"><span class="tag">Every day</span><span class="tag change">Asks before tagging</span></div><a class="more" href="{{ root }}app/?pack=governance/tag-enforcement">Open in the app {{ icon('arrow') }}</a></article>

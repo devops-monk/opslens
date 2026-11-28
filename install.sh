@@ -12,7 +12,7 @@
 # It installs tools only. It never reads cloud credentials or calls any cloud API.
 #
 # Options (environment variables):
-#   OPSLENS_REF=v0.2.1            git tag/branch to install (default: the release this script shipped with)
+#   OPSLENS_REF=v0.3.0            git tag/branch to install (default: the release this script shipped with)
 #   OPSLENS_EXTRAS=               pip extras, e.g. "ai" for the AI planner (default: none)
 #   OPSLENS_SKIP_ENGINES=1        don't install Flowpipe/Steampipe or any plugin
 #   OPSLENS_SKIP_PLUGINS=1        install the engines but no plugins
@@ -26,7 +26,7 @@ REPO="https://github.com/devops-monk/opslens"
 FLOWPIPE_VERSION="1.2.4"
 STEAMPIPE_VERSION="2.5.0"
 PLUGIN_SPECS="aws@1.35.0 jira@2.0.5 microsoft365@1.3.0 theapsgroup/gitlab jplanckeel/opsgenie"
-REF="${OPSLENS_REF:-v0.2.1}"
+REF="${OPSLENS_REF:-v0.3.0}"
 EXTRAS="${OPSLENS_EXTRAS-}"
 BIN_DIR="${OPSLENS_BIN_DIR:-$HOME/.local/bin}"
 DRY="${OPSLENS_DRY_RUN:-0}"

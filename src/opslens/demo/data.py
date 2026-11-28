@@ -790,3 +790,7 @@ TABLES: dict[str, list[dict[str, Any]]] = {
         }
     ],
 }
+
+from .data_extra import extend as _extend
+
+_extend(TABLES)

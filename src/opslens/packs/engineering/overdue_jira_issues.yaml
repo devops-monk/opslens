@@ -1,0 +1,29 @@
+# Pack: engineering / overdue-jira-issues
+# Open Jira issues past their due date, posted to Teams so the team sees them. Reads and notifies only.
+name: overdue_jira_issues
+title: Overdue Jira issues to Teams
+description: Finds open Jira issues past their due date and posts them to Teams.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 20
+  sql: |
+    select key, summary, assignee_display_name, duedate
+    from jira_issue
+    where status_category <> 'Done' and duedate < now()
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Tell the channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "{key} is overdue (due {duedate}): {summary}. Assignee: {assignee_display_name}."

@@ -1,0 +1,30 @@
+# Pack: governance / kms-key-rotation
+# Customer-managed KMS keys should rotate yearly. Files one ticket per key that does not. Reads and notifies only.
+name: kms_rotation_check
+title: KMS keys without rotation
+description: Finds enabled customer-managed KMS keys with rotation switched off and opens a Jira ticket for each.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 50
+  sql: |
+    select id, arn, region, account_id, description, creation_date
+    from aws_kms_key
+    where key_manager = 'CUSTOMER' and key_state = 'Enabled' and key_rotation_enabled = false
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Enable rotation on KMS key {id}"
+      description: "KMS key {id} ({description}) in account {account_id} / {region}, created {creation_date}, does not rotate automatically."

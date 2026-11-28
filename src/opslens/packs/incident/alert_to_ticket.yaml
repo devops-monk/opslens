@@ -1,0 +1,28 @@
+# Pack: incident / alert-to-ticket
+# Every open Opsgenie alert should have a Jira ticket. Opens one per alert and never twice: alerts whose id already appears
+# in a Jira summary are skipped. The Jira project (OPS) is in the SQL and the args: edit both if you use another.
+name: opsgenie_alert_to_jira
+title: Opsgenie alerts to Jira tickets
+description: Opens a Jira ticket for each open Opsgenie alert that does not already have one.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 20
+  sql: |
+    select a.alert_id, a.message, a.priority, a.source, a.created_at
+    from opsgenie_alert a
+    where a.status = 'open'
+      and not exists (
+        select 1 from jira_issue j
+        where j.project_key = 'OPS' and j.summary like '%' || a.alert_id || '%'
+      )
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket per alert
+    args:
+      project_key: OPS
+      issue_type: Task
+      summary: "[{priority}] {message} ({alert_id})"
+      description: "Opsgenie alert {alert_id} from {source}, opened {created_at}."

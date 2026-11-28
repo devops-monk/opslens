@@ -1,0 +1,39 @@
+# Pack: security / rds-no-backups
+# RDS instances with a backup retention of 0 days have no automated backups. Tickets each, then (after approval) sets 7 days.
+name: rds_backups_off
+title: Turn on RDS automated backups
+description: Finds RDS instances with automated backups switched off, opens a Jira ticket for each, and sets 7 days of retention after approval.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 30
+  sql: |
+    select db_instance_identifier, engine, region, account_id
+    from aws_rds_db_instance
+    where backup_retention_period = 0
+notify: true
+approval:
+  prompt: Set 7 days of backup retention on these databases?
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "RDS {db_instance_identifier} has no automated backups"
+      description: "Database {db_instance_identifier} ({engine}) in account {account_id} / {region} has a backup retention period of 0 days."
+  - pipeline: aws.modify_rds_db_instance
+    title: Set backup retention to 7 days
+    gated: true
+    args:
+      region: "{region}"
+      db_instance_identifier: "{db_instance_identifier}"
+      backup_retention_period: "7"

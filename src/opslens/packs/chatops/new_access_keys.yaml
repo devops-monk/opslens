@@ -1,0 +1,29 @@
+# Pack: chatops / new-access-keys
+# A new IAM access key is worth a second look. Posts to Teams for each key created in the last day. Reads and notifies only.
+name: new_iam_access_keys
+title: Notify Teams about new IAM access keys
+description: Posts a Teams message for each IAM access key created in the last 24 hours.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: hourly
+detect:
+  max_items: 20
+  sql: |
+    select access_key_id, user_name, account_id, create_date
+    from aws_iam_access_key
+    where create_date > now() - interval '24 hours'
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Tell the channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "New access key {access_key_id} was created for IAM user {user_name} in account {account_id} at {create_date}."

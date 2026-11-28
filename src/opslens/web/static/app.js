@@ -50,6 +50,7 @@
     if (opt.method !== "GET") opt.headers["X-Opslens-Token"] = meta ? meta.token : "";
     const r = await fetch(path.replace(/^\//, ""), opt); // relative, so the app also works under a path prefix (/app/)
     let data = null; try { data = await r.json(); } catch (_) { /* empty */ }
+    if (r.status === 401 && meta && meta.mode === "team" && meta.auth === "password") { location.href = "login"; return null; }  // session expired
     if (!r.ok) throw new Error(typeof (data && data.detail) === "string" ? data.detail : `${r.status} ${r.statusText}`);
     return data;
   }
@@ -123,17 +124,18 @@
 
   // ---------------------------------------------------------------- home: ask + templates
   const EXAMPLES = ["Unattached EBS volumes: open a Jira ticket, then delete after I approve", "EC2 instances missing an Owner tag", "Page me when GuardDuty finds something serious", "Who deployed what when this alert fired?"];
-  const CATS = { all: "All", "finops-cleanup": "Cost", governance: "Governance", security: "Security", incident: "Incident response" };
+  const CATS = { all: "All", "finops-cleanup": "Cost", governance: "Governance", security: "Security", incident: "Incident response", chatops: "ChatOps", engineering: "Engineering" };
   function renderHome() {
     const ai = meta.ai && meta.mode !== "demo";
     $("#askgo").replaceChildren(ic(ai ? "sparkle" : "search"), ai ? "Draft with AI" : "Find tables & actions");
     $("#askhint").textContent = ai ? `Drafted by ${meta.provider}. You read it before anything runs.` : "Searches the built-in catalog of tables and actions. No AI needed.";
     const ex = $("#examples"); ex.replaceChildren(...EXAMPLES.map((t) => h("button", { class: "chip", type: "button", onclick: () => { $("#ask").value = t; $("#ask").focus(); } }, t)));
-    const cats = $("#cats"); const present = ["all", ...new Set(S.packs.map((p) => p.category))];
+    const cats = $("#cats"); const order = Object.keys(CATS), rank = (x) => { const i = order.indexOf(x); return i < 0 ? 99 : i; };
+    const present = ["all", ...[...new Set(S.packs.map((p) => p.category))].sort((a, b) => rank(a) - rank(b))];
     cats.replaceChildren(...present.map((c) => h("button", { class: "chip", role: "tab", "aria-selected": String(S.cat === c), onclick: () => { S.cat = c; renderHome(); } }, CATS[c] || c)));
     const grid = $("#templates"); grid.replaceChildren();
     grid.append(h("button", { class: "tpl blank", onclick: () => startBlank() }, h("span", { class: "plus" }, ic("plus")), h("h3", {}, "Start from scratch"), h("span", { class: "muted" }, "Choose a trigger, what to find, and what to do.")));
-    for (const p of S.packs.filter((x) => S.cat === "all" || x.category === S.cat)) grid.append(templateCard(p));
+    for (const p of S.packs.filter((x) => S.cat === "all" || x.category === S.cat).sort((a, b) => rank(a.category) - rank(b.category))) grid.append(templateCard(p));
   }
   function templateCard(p) {
     const gated = p.steps.some((s) => s.gated), nChange = p.steps.filter((s) => s.effect === "change").length;
@@ -498,7 +500,15 @@
   (async () => {
     try { meta = await api("/api/meta"); } catch (e) { document.body.prepend(h("div", { class: "banner" }, `Cannot reach the opslens API: ${e.message}`)); return; }
     const demo = meta.mode === "demo";
-    $("#badge").textContent = demo ? "public demo · sample data" : `local · v${meta.version}`; $("#badge").classList.toggle("demo", demo);
+    const team = meta.mode === "team";
+    $("#badge").textContent = demo ? "public demo · sample data" : `${team ? "team" : "local"} · v${meta.version}`; $("#badge").classList.toggle("demo", demo);
+    if (team && meta.user) {
+      $("#who").hidden = false; $("#who").textContent = meta.user;
+      if (meta.auth === "password") {
+        $("#logout").hidden = false;
+        $("#logout").addEventListener("click", async () => { try { await api("/api/logout", {}); } catch (_) { /* leave anyway */ } location.href = "login"; });
+      }
+    }
     if (demo) { const b = $("#banner"); b.hidden = false; b.textContent = "This is a public demo on sample data. Nothing here can reach a cloud account, deploy, or change anything."; $("#getit").hidden = false; }
     else $("#tab-mine").hidden = false;
     try { S.packs = await api("/api/packs"); } catch (e) { toast(`Could not load templates: ${e.message}`, 7000); }

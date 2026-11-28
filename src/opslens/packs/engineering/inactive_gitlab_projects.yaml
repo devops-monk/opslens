@@ -1,0 +1,30 @@
+# Pack: engineering / inactive-gitlab-projects
+# GitLab projects with no activity for a year are candidates for archiving. Files a ticket for each. Reads and notifies only.
+name: inactive_gitlab_projects
+title: Inactive GitLab projects
+description: Finds GitLab projects with no activity for a year and opens a Jira ticket for each asking whether to archive it.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+trigger:
+  kind: schedule
+  schedule: weekly
+detect:
+  max_items: 30
+  sql: |
+    select id, full_path, web_url, last_activity_at
+    from gitlab_project
+    where archived = false and last_activity_at < now() - interval '365 days'
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "Archive GitLab project {full_path}?"
+      description: "Project {full_path} ({web_url}) has had no activity since {last_activity_at}. Should it be archived?"

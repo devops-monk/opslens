@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opslens"
-version = "0.2.1"
+version = "0.3.0"
 description = "Turn plain-English ops requirements into reviewable, deterministic Flowpipe pipelines: catalogs of Steampipe tables and Flowpipe pipelines, a read-only SQL guard, and (optionally) an AI planner."
 readme = "README.md"
 license = "Apache-2.0"

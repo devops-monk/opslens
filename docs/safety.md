@@ -36,17 +36,18 @@ Text from tickets, alerts and resource names is **data**. It is substituted into
 
 ## The web app
 
-| Protection | Local | Public demo |
-|---|---|---|
-| Bind address | Loopback only (refuses otherwise) | Any, behind your proxy |
-| `Host` header allow-list (anti DNS-rebinding) | Yes | Yes |
-| Per-session token on every state-changing call | Yes | n/a (no state-changing calls) |
-| Save, deploy, run, approve | Yes | **403** |
-| AI | If configured | **Off** |
-| Live data | Yes | **Never** |
-| Input size limits and a SQL guard | Yes | Yes |
-| Rate limit | n/a | 120 requests/min per client |
-| UI inserts dynamic text as text, never HTML | Yes | Yes |
+| Protection | Local | Team | Public demo |
+|---|---|---|---|
+| Bind address | Loopback only (refuses otherwise) | Any, but only starts with sign-in | Any, behind your proxy |
+| `Host` header allow-list (anti DNS-rebinding) | Yes | Yes (required) | Yes |
+| Sign-in | n/a (loopback) | **Required**: shared password or identity proxy | n/a |
+| Per-session token on every state-changing call | Yes | Yes | n/a (no state-changing calls) |
+| Save, deploy, run, approve | Yes | Yes, audit log names the person | **403** |
+| AI | If configured | If configured | **Off** |
+| Live data | Yes | Yes | **Never** |
+| Input size limits and a SQL guard | Yes | Yes | Yes |
+| Rate limit | n/a | 10 sign-in attempts/min per client | 120 requests/min per client |
+| UI inserts dynamic text as text, never HTML | Yes | Yes | Yes |
 
 ## Reporting a problem
 

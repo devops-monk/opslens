@@ -1,0 +1,42 @@
+# Pack: governance / iam-mfa-enforcement
+# IAM users without MFA are the most common account-takeover path. Files a ticket per user and tells the security channel.
+name: iam_users_without_mfa
+title: IAM users without MFA
+description: Finds IAM users with no MFA device, opens a Jira ticket for each, and posts to Teams.
+variables:
+  jira_project:
+    default: OPS
+    description: Jira project key tickets are created in.
+  jira_issue_type:
+    default: Task
+    description: Jira issue type for the tickets.
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 50
+  sql: |
+    select name, arn, account_id, create_date, password_last_used
+    from aws_iam_user
+    where mfa_enabled = false
+notify: true
+actions:
+  - pipeline: jira.create_issue
+    title: Open a ticket
+    args:
+      project_key: "{var.jira_project}"
+      issue_type: "{var.jira_issue_type}"
+      summary: "IAM user {name} has no MFA"
+      description: "IAM user {name} in account {account_id} has no MFA device. Created {create_date}; password last used {password_last_used}."
+  - pipeline: teams.send_channel_message
+    title: Tell the security channel
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "IAM user {name} in account {account_id} has no MFA device. A ticket was opened."

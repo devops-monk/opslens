@@ -1,0 +1,29 @@
+# Pack: engineering / stale-merge-requests
+# Open, non-draft merge requests with no activity for 14 days. Nudges the team in Teams. Reads and notifies only.
+name: stale_merge_requests
+title: Stale merge requests
+description: Finds open GitLab merge requests with no activity for 14 days and posts a nudge to Teams.
+variables:
+  teams_team_id:
+    default: CHANGE-ME
+    description: Microsoft Teams team id to post into.
+  teams_channel_id:
+    default: CHANGE-ME
+    description: Microsoft Teams channel id to post into.
+trigger:
+  kind: schedule
+  schedule: daily
+detect:
+  max_items: 20
+  sql: |
+    select iid, title, author_username, updated_at, web_url
+    from gitlab_merge_request
+    where state = 'opened' and draft = false and updated_at < now() - interval '14 days'
+notify: true
+actions:
+  - pipeline: teams.send_channel_message
+    title: Nudge the team
+    args:
+      team_id: "{var.teams_team_id}"
+      channel_id: "{var.teams_channel_id}"
+      message: "Merge request !{iid} {title} by {author_username} has had no activity since {updated_at}: {web_url}"
