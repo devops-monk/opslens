@@ -20,6 +20,37 @@ Two rules apply everywhere:
 
 Environment variables are the simplest route and the only practical one in a container. Set them **before** the program starts: Steampipe reads them when its service starts, and Flowpipe when `opslens deploy` starts its server. If you change one, restart (`steampipe service restart`, then deploy again).
 
+## At a glance
+
+| Service | Get a credential | Variables (act / read) | Test it |
+|---|---|---|---|
+| [Jira](#jira) | Atlassian account, security, API tokens | `JIRA_URL` `JIRA_USER` `JIRA_API_TOKEN` / `JIRA_TOKEN` | `opslens query "select key from jira_issue limit 1"` |
+| [Microsoft Teams](#microsoft-teams) | A Microsoft Graph access token (expires in about an hour) | `TEAMS_ACCESS_TOKEN` / app registration in `microsoft365.spc` | `flowpipe pipeline run teams.pipeline.list_teams` |
+| [Slack](#slack) | A Slack app bot token, `chat:write` | `SLACK_TOKEN` / none | `flowpipe pipeline run slack.pipeline.get_current_user` |
+| [GitLab](#gitlab) | Personal access token (`read_api`, or `api` to change) | `GITLAB_TOKEN` (and `GITLAB_ADDR` if self-managed) | `opslens query "select full_path from gitlab_project limit 1"` |
+| [Opsgenie](#opsgenie) | API key management | `OPSGENIE_ALERT_API_KEY` `OPSGENIE_INCIDENT_API_KEY` / `token` in `opsgenie.spc` | `opslens query "select message from opsgenie_alert limit 1"` |
+| [AWS](#aws) | Your normal AWS profile or keys | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` | `opslens query "select instance_id from aws_ec2_instance limit 1"` |
+| [ipstack](#ipstack-ip-lookup) | An ipstack access key | `IPSTACK_ACCESS_KEY` | see the [IP example](../ai/#bonus-find-this-machines-public-ip-with-the-ipstack-mod) |
+
+## The same five steps for every service
+
+1. **Get the credential** from the service (the table above says where).
+2. **Set it** as an environment variable in the shell that will start opslens, Steampipe and Flowpipe. Or put it in the service's `.spc` (read) or `.fpc` (act) file, shown in each section below.
+3. **Restart what reads it.** Steampipe reads credentials when its service starts: `steampipe service restart`. Flowpipe picks them up when `opslens deploy` starts its server.
+4. **Test it** with the one-line command from the table. A row or a JSON answer means it works; the error tables at the end of this page decode the rest.
+5. **Use it.** Install a [template](../packs/) for that service, fill in its variables (team and channel ids, Jira project key), then [preview and deploy](../deploy/).
+
+A worked Jira run, start to finish:
+
+```bash
+export JIRA_URL="https://your-domain.atlassian.net/" JIRA_USER="you@company.com"
+export JIRA_TOKEN="<token>" JIRA_API_TOKEN="<token>"
+steampipe service restart
+opslens query "select key, summary, status from jira_issue limit 3"      # read works
+opslens pack install engineering/stale-jira-issues --out generated        # pick a template
+opslens preview generated/stale_jira_issues                              # live read, nothing sent
+```
+
 ## Check everything first
 
 ```bash
